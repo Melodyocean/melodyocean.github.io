@@ -60,7 +60,7 @@
 
   App.route('/projects/:id', {
     tab: 'projects',
-    hideTabbar: true,
+    noFab: true,
     render: function (page, params) {
       if (params.id === 'new') { renderProjectFormPage(page, null); return; }
       page.innerHTML = App.topbar({ title: '專案', back: '/projects', backLabel: '專案' }) +
@@ -91,6 +91,7 @@
     page.querySelector('.topbar').outerHTML = App.topbar({
       title: '專案', back: closed ? '/history' : '/projects', backLabel: closed ? '歷史' : '專案', more: perm.canManage
     });
+    App.setActiveTab(closed ? 'history' : 'projects');
     var open = p.tasks.filter(function (t) { return t.status !== '已完成'; });
     var groups = GROUP_ORDER.map(function (status) {
       var list = open.filter(function (t) { return t.status === status; });
@@ -235,7 +236,7 @@
 
   App.route('/projects/:id/done', {
     tab: 'projects',
-    hideTabbar: true,
+    noFab: true,
     render: function (page, params) {
       page.innerHTML = App.topbar({ title: '已完成', back: '/projects/' + encodeURIComponent(params.id), backLabel: '專案' }) +
         '<main class="content" id="done-box">' + App.loadingHtml + '</main>';
@@ -253,7 +254,7 @@
 
   App.route('/projects/:id/edit', {
     tab: 'projects',
-    hideTabbar: true,
+    noFab: true,
     render: function (page, params) {
       page.innerHTML = App.topbar({ title: '編輯專案', back: '/projects/' + encodeURIComponent(params.id), backLabel: '取消' }) +
         '<main class="content" id="pform-box">' + App.loadingHtml + '</main>';

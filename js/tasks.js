@@ -108,7 +108,7 @@
 
   App.route('/tasks/:id', {
     tab: 'todos',
-    hideTabbar: true,
+    noFab: true,
     render: function (page, params) {
       page.innerHTML = App.topbar({ title: '任務詳情', back: '/todos', backLabel: '返回' }) +
         '<main class="content" id="task-box">' + App.loadingHtml + '</main>';
@@ -151,6 +151,7 @@
     var backLabel = t.projectId ? '專案' : (t.status === '已完成' ? '歷史' : '公共待辦');
     var hasMore = perm.canReassign;
     page.querySelector('.topbar').outerHTML = App.topbar({ title: '任務詳情', back: back, backLabel: backLabel, more: hasMore });
+    App.setActiveTab(t.projectId ? (t.projectState === '已結案' ? 'history' : 'projects') : (t.status === '已完成' ? 'history' : 'todos'));
 
     var actions = perm.actions.map(function (a) {
       var cls = a.action === 'return' || a.action === 'reopen' ? 'btn-secondary' : 'btn-primary';
@@ -345,10 +346,11 @@
   /** place：todo＝公共待辦；pick＝請使用者選專案；其他＝專案編號 */
   App.route('/new/task/:place', {
     tab: 'todos',
-    hideTabbar: true,
+    noFab: true,
     render: function (page, params) {
       var place = params.place;
       var isProject = place !== 'todo' && place !== 'pick';
+      App.setActiveTab(place === 'todo' ? 'todos' : 'projects');
       page.innerHTML = App.topbar({
         title: place === 'todo' ? '新增公共待辦' : '新增子任務',
         back: isProject ? '/projects/' + encodeURIComponent(place) : (place === 'pick' ? '/projects' : '/todos'),
@@ -364,7 +366,7 @@
     }
   });
 
-  App.route('/new/todo', { tab: 'todos', hideTabbar: true, render: function () { App.go('/new/task/todo', true); } });
+  App.route('/new/todo', { tab: 'todos', noFab: true, render: function () { App.go('/new/task/todo', true); } });
 
   function dueOptions() {
     var today = App.today();
@@ -490,7 +492,7 @@
 
   App.route('/tasks/:id/assign', {
     tab: 'todos',
-    hideTabbar: true,
+    noFab: true,
     render: function (page, params) {
       var id = params.id;
       page.innerHTML = App.topbar({ title: '修改指派', back: '/tasks/' + encodeURIComponent(id), backLabel: '取消' }) +
@@ -498,6 +500,7 @@
       Promise.all([App.api('tasks.get', { id: id }), App.api('members.list'), App.api('units.list')]).then(function (res) {
         App.state.units = res[2].units;
         var t = res[0].task;
+        App.setActiveTab(t.projectId ? 'projects' : 'todos');
         var box = App.$('assign-page');
         if (!box) return;
         box.innerHTML = '<form class="card form" id="assign-form">' +

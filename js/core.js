@@ -308,8 +308,10 @@
       App.go('/home', true);
       return;
     }
-    renderTabbar(match.route.opts.hideTabbar ? null : match.route.opts.tab);
-    App.$('view-app').classList.toggle('no-tabbar', !!match.route.opts.hideTabbar);
+    // 底部分頁列在所有頁面都固定顯示（SPEC 5.1）；詳情與表單頁不顯示右下角「＋」
+    renderTabbar(match.route.opts.tab);
+    App.$('fab').hidden = !!match.route.opts.noFab;
+    App.$('view-app').classList.remove('composing');
     var page = App.$('page');
     page.innerHTML = '';
     window.scrollTo(0, 0);
@@ -317,6 +319,18 @@
   };
 
   window.addEventListener('hashchange', App.render);
+
+  // 在備註輸入框打字時暫時收起分頁列，讓鍵盤上方有空間；離開輸入框就恢復
+  document.addEventListener('focusin', function (e) {
+    if (e.target.closest && e.target.closest('.composer')) App.$('view-app').classList.add('composing');
+  });
+  document.addEventListener('focusout', function (e) {
+    if (e.target.closest && e.target.closest('.composer')) {
+      setTimeout(function () {
+        if (!document.activeElement || !document.activeElement.closest('.composer')) App.$('view-app').classList.remove('composing');
+      }, 150);
+    }
+  });
   document.addEventListener('DOMContentLoaded', function () {
     var fab = App.$('fab');
     if (fab) fab.onclick = function () { App.onFab(); };
@@ -342,9 +356,6 @@
 
   function renderTabbar(activeTab) {
     var nav = App.$('tabbar');
-    nav.hidden = !activeTab;
-    App.$('fab').hidden = !activeTab;
-    if (!activeTab) return;
     nav.innerHTML = TABS.filter(function (t) { return !t.admin || App.state.profile.isAdmin; }).map(function (t) {
       return '<a class="tab' + (t.id === activeTab ? ' active' : '') + '" href="#' + t.path + '"' +
         (t.id === activeTab ? ' aria-current="page"' : '') + '>' +
@@ -352,6 +363,11 @@
         '<span>' + t.label + '</span></a>';
     }).join('');
   }
+
+  /** 頁面載入資料後，依內容決定底部要亮哪個分頁（例如子任務亮「專案」） */
+  App.setActiveTab = function (tab) {
+    renderTabbar(tab);
+  };
 
   /** 右下角「＋」新增按鈕（SPEC 5.1） */
   App.onFab = function () {

@@ -376,8 +376,7 @@ a { color: var(--primary); }
 }
 
 /* 沒有分頁列的頁面（詳情、表單） */
-.no-tabbar .content { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
-.no-tabbar .content.has-composer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+.content.has-composer { padding-bottom: calc(var(--tabbar-h) + 110px + env(safe-area-inset-bottom)); }
 
 .btn-more {
   min-width: 64px;
@@ -441,11 +440,11 @@ a { color: var(--primary); }
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
   display: flex;
   gap: 8px;
   align-items: flex-end;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  padding: 10px 16px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   z-index: 20;
@@ -557,13 +556,13 @@ a { color: var(--primary); }
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding: 10px 16px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   z-index: 20;
 }
-.no-tabbar .content.has-bottom-bar { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+.content.has-bottom-bar { padding-bottom: calc(var(--tabbar-h) + 96px + env(safe-area-inset-bottom)); }
 
 .reminder { border-left: 4px solid #9ca3af; }
 .reminder a { color: inherit; text-decoration: none; }
@@ -571,3 +570,7 @@ a { color: var(--primary); }
 .modal-text { white-space: pre-line; max-height: 50vh; overflow: auto; }
 select.input { appearance: auto; }
 em.req { font-style: normal; color: var(--danger); font-size: 12px; }
+
+/* 打字時收起分頁列，輸入框貼齊底部 */
+.composing .tabbar { display: none; }
+.composing .composer { bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
