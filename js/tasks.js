@@ -28,11 +28,17 @@
     return esc(t.unitName) + ' · ' + (t.assigneeNames.length ? esc(t.assigneeNames.join('、')) : '單位全體');
   }
 
-  App.taskRow = function (t) {
+  /** opts.inProject：在專案內頁時不重複顯示專案名稱 */
+  App.taskRow = function (t, opts) {
+    opts = opts || {};
+    var place = opts.inProject ? '' : esc(t.projectId ? t.projectName : '公共待辦') + ' · ';
     return '<a class="task-row" href="#/tasks/' + encodeURIComponent(t.id) + '">' +
       '<span class="task-main">' +
       '<span class="task-title"><span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + '</span>' +
-      '<span class="task-sub">' + App.statusBadge(t.status) + ' <span>' + (t.projectId ? '' : '公共待辦 · ') + whoHtml(t) + '</span></span>' +
+      '<span class="task-sub">' + App.statusBadge(t.status) +
+      (t.closedWithProject ? ' <span class="tag tag-paused">隨專案結案</span>' : '') +
+      (t.projectPaused && !opts.inProject ? ' <span class="tag tag-paused">暫停中</span>' : '') +
+      ' <span>' + place + whoHtml(t) + '</span></span>' +
       '</span>' +
       '<span class="task-side">' + App.dueHtml(t) + (t.noteCount ? '<span class="note-count">💬 ' + t.noteCount + '</span>' : '') + '</span>' +
       '</a>';
@@ -43,7 +49,7 @@
       var list = tasks.filter(function (t) { return t.status === status; });
       if (!list.length) return '';
       return '<h3 class="section-title">' + App.statusBadge(status) + ' ' + list.length + ' 項</h3>' +
-        '<div class="card list">' + list.map(App.taskRow).join('') + '</div>';
+        '<div class="card list">' + list.map(function (t) { return App.taskRow(t); }).join('') + '</div>';
     }).join('');
   }
 
@@ -82,12 +88,18 @@
       page.innerHTML = App.topbar({ title: '歷史' }) +
         '<main class="content" id="history-list">' + App.loadingHtml + '</main>';
       loadInto('history-list', App.api('tasks.history'), function (data) {
-        if (!data.tasks.length) {
-          return '<div class="card empty"><h2>還沒有已完成的項目</h2>' +
-            '<p class="muted">任務簽核完成後會移到這裡。已結案的專案會在第 3 階段加入。</p></div>';
+        if (!data.tasks.length && !data.projects.length) {
+          return '<div class="card empty"><h2>還沒有歷史資料</h2>' +
+            '<p class="muted">簽核完成的任務、已結案的專案會移到這裡。</p></div>';
         }
-        return '<h3 class="section-title">已完成（' + data.tasks.length + '）</h3>' +
-          '<div class="card list">' + data.tasks.map(App.taskRow).join('') + '</div>';
+        return (data.projects.length ? '<h3 class="section-title">已結案專案（' + data.projects.length + '）</h3>' +
+            '<div class="card list">' + data.projects.map(function (p) {
+              return '<a class="project-row" href="#/projects/' + encodeURIComponent(p.id) + '">' +
+                '<span class="project-title"><span class="task-id">' + esc(p.id) + '</span> ' + esc(p.name) + ' ' + App.projectTags(p) + '</span>' +
+                '<span class="project-hint muted">' + (p.closeNote ? esc(p.closeNote) + ' · ' : '') + '結案於 ' + esc(App.fmtDate(p.closedAt)) + ' · 完成 ' + p.done + ' / ' + p.total + ' 項</span></a>';
+            }).join('') + '</div>' : '') +
+          (data.tasks.length ? '<h3 class="section-title">已完成的任務（' + data.tasks.length + '）</h3>' +
+            '<div class="card list">' + data.tasks.map(function (t) { return App.taskRow(t); }).join('') + '</div>' : '');
       });
     }
   });
@@ -135,9 +147,10 @@
 
   function renderTask(page, t) {
     var perm = t.permissions;
-    var back = t.status === '已完成' ? '/history' : '/todos';
+    var back = t.projectId ? '/projects/' + encodeURIComponent(t.projectId) : (t.status === '已完成' ? '/history' : '/todos');
+    var backLabel = t.projectId ? '專案' : (t.status === '已完成' ? '歷史' : '公共待辦');
     var hasMore = perm.canReassign;
-    page.querySelector('.topbar').outerHTML = App.topbar({ title: '任務詳情', back: back, backLabel: t.status === '已完成' ? '歷史' : '公共待辦', more: hasMore });
+    page.querySelector('.topbar').outerHTML = App.topbar({ title: '任務詳情', back: back, backLabel: backLabel, more: hasMore });
 
     var actions = perm.actions.map(function (a) {
       var cls = a.action === 'return' || a.action === 'reopen' ? 'btn-secondary' : 'btn-primary';
@@ -145,8 +158,11 @@
     }).join('');
 
     App.$('task-box').innerHTML =
+      (perm.readOnly ? '<div class="banner banner-closed">' + (t.closedWithProject ? '隨專案結案' : '專案已結案') + '：此任務目前唯讀。需要時請專案建立者或管理者「取消結案」。</div>' : '') +
+      (perm.pausedBlocked ? '<div class="banner banner-paused">專案暫停中：不能變更狀態，需先恢復專案；仍可添加備註。</div>' : '') +
       '<div class="task-head">' +
-      '<div class="task-meta">' + esc(t.id) + ' · ' + (t.projectId ? '' : '公共待辦') + '</div>' +
+      '<div class="task-meta">' + esc(t.id) + ' · ' +
+      (t.projectId ? '<a href="#/projects/' + encodeURIComponent(t.projectId) + '">' + esc(t.projectName) + '</a>' : '公共待辦') + '</div>' +
       '<h1 class="task-h1">' + esc(t.title) + '</h1>' +
       (t.description ? '<p class="task-desc">' + esc(t.description) + '</p>' : '') +
       '</div>' +
@@ -324,23 +340,31 @@
     };
   }
 
-  // ---------- 新增公共待辦（SPEC 5.7）----------
+  // ---------- 新增子任務／公共待辦（SPEC 5.7）----------
 
-  App.route('/new/todo', {
+  /** place：todo＝公共待辦；pick＝請使用者選專案；其他＝專案編號 */
+  App.route('/new/task/:place', {
     tab: 'todos',
     hideTabbar: true,
-    render: function (page) {
-      page.innerHTML = App.topbar({ title: '新增公共待辦', back: '/todos', backLabel: '取消' }) +
-        '<main class="content" id="new-box">' + App.loadingHtml + '</main>';
-      Promise.all([App.api('members.list'), App.api('units.list')]).then(function (res) {
+    render: function (page, params) {
+      var place = params.place;
+      var isProject = place !== 'todo' && place !== 'pick';
+      page.innerHTML = App.topbar({
+        title: place === 'todo' ? '新增公共待辦' : '新增子任務',
+        back: isProject ? '/projects/' + encodeURIComponent(place) : (place === 'pick' ? '/projects' : '/todos'),
+        backLabel: '取消'
+      }) + '<main class="content" id="new-box">' + App.loadingHtml + '</main>';
+      Promise.all([App.api('members.list'), App.api('units.list'), App.api('projects.creatable')]).then(function (res) {
         App.state.units = res[1].units;
-        if (App.$('new-box')) renderNewForm(res[0].members);
+        if (App.$('new-box')) renderNewForm(res[0].members, res[2].projects, place);
       }).catch(function (err) {
         var box = App.$('new-box');
         if (box) box.innerHTML = App.errorHtml(err);
       });
     }
   });
+
+  App.route('/new/todo', { tab: 'todos', hideTabbar: true, render: function () { App.go('/new/task/todo', true); } });
 
   function dueOptions() {
     var today = App.today();
@@ -353,14 +377,24 @@
     ];
   }
 
-  function renderNewForm(members) {
+  function renderNewForm(members, projects, place) {
     var box = App.$('new-box');
     var due = { date: '' };
+    var initialPlace = place === 'todo' ? '' : place === 'pick' ? null : place;
+    if (initialPlace && !projects.some(function (p) { return p.id === initialPlace; })) {
+      box.innerHTML = App.errorHtml({ message: '這個專案目前不能新增子任務（可能已暫停或結案）。' });
+      return;
+    }
     box.innerHTML =
       '<form class="card form" id="new-form" novalidate>' +
-      '<div class="field"><span class="field-label">放在</span>' +
-      '<div class="chips"><span class="chip on">公共待辦</span></div>' +
-      '<span class="field-hint">放進專案的功能在第 3 階段開放</span></div>' +
+      '<label class="field" id="field-place"><span class="field-label">放在</span>' +
+      '<select class="input" name="place">' +
+      (initialPlace === null ? '<option value="__pick" selected disabled>請選擇專案…</option>' : '') +
+      projects.map(function (p) {
+        return '<option value="' + esc(p.id) + '"' + (p.id === initialPlace ? ' selected' : '') + '>' + esc(p.id + ' ' + p.name) + '</option>';
+      }).join('') +
+      '<option value=""' + (initialPlace === '' ? ' selected' : '') + '>公共待辦</option>' +
+      '</select></label>' +
       '<label class="field" id="field-title"><span class="field-label">任務標題 <em>必填</em></span>' +
       '<input class="input" name="title" maxlength="100" autocomplete="off"></label>' +
       '<div id="assign-box"></div>' +
@@ -412,6 +446,7 @@
       var a = picker.get();
       var title = form.title.value.trim();
       var missing = [];
+      if (form.place.value === '__pick') missing.push('放在哪個專案');
       if (!title) missing.push('任務標題');
       if (!a.unitId) missing.push('負責單位');
       App.$('new-save').disabled = missing.length > 0;
@@ -422,12 +457,14 @@
       App.$('notify-note').textContent = '建立後狀態為「未開始」，' + who + '明早 8:00 會收到 Email 通知';
     }
     form.title.oninput = function () { form.title.dataset.touched = '1'; update(); };
+    form.place.onchange = update;
     update();
 
     form.onsubmit = function (e) {
       e.preventDefault();
       var a = picker.get();
       var payload = {
+        projectId: form.place.value === '__pick' ? '' : form.place.value,
         title: form.title.value.trim(),
         unitId: a.unitId,
         assignees: a.assignees,

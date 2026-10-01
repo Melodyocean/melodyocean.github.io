@@ -124,6 +124,13 @@
     }
   };
 
+  /** 完成進度條（已完成／總數） */
+  App.progressHtml = function (done, total) {
+    var pct = total ? Math.round(done / total * 100) : 0;
+    return '<div class="progress"><div class="progress-bar"><span style="width:' + pct + '%"></span></div>' +
+      '<span class="progress-text">' + done + ' / ' + total + '</span></div>';
+  };
+
   App.initial = function (name) {
     return (String(name || '?').trim().charAt(0) || '?').toUpperCase();
   };
@@ -189,6 +196,67 @@
     });
   };
 
+  /**
+   * 表單對話框：fields 為 [{ name, label, type: text|textarea|date|choice, options, required, value, min, placeholder, hint }]。
+   * 回傳 Promise<{ name: value }|null>。
+   */
+  App.formModal = function (opts) {
+    return new Promise(function (resolve) {
+      var root = openModal(
+        '<h2>' + App.esc(opts.title) + '</h2>' +
+        (opts.message ? '<p class="modal-text">' + App.esc(opts.message) + '</p>' : '') +
+        '<form class="modal-form form" novalidate>' + opts.fields.map(function (f) {
+          var label = '<span class="field-label">' + App.esc(f.label) + (f.required ? ' <em>必填</em>' : '') + '</span>';
+          var input;
+          if (f.type === 'textarea') {
+            input = '<textarea class="input textarea" name="' + f.name + '" rows="3" maxlength="' + (f.maxLength || 500) + '" placeholder="' + App.esc(f.placeholder || '') + '">' + App.esc(f.value || '') + '</textarea>';
+          } else if (f.type === 'choice') {
+            input = '<div class="segmented" data-choice="' + f.name + '">' + f.options.map(function (o) {
+              return '<button type="button" class="seg' + (f.value === o ? ' on' : '') + '" data-value="' + App.esc(o) + '">' + App.esc(o) + '</button>';
+            }).join('') + '</div><input type="hidden" name="' + f.name + '" value="' + App.esc(f.value || '') + '">';
+          } else {
+            input = '<input class="input" name="' + f.name + '" type="' + (f.type === 'date' ? 'date' : 'text') + '"' +
+              (f.min ? ' min="' + f.min + '"' : '') + ' maxlength="' + (f.maxLength || 200) + '" value="' + App.esc(f.value || '') + '" placeholder="' + App.esc(f.placeholder || '') + '" autocomplete="off">';
+          }
+          return '<div class="field" data-field="' + f.name + '">' + label + input + (f.hint ? '<span class="field-hint">' + App.esc(f.hint) + '</span>' : '') + '</div>';
+        }).join('') +
+        '<div class="alert" data-role="error" hidden></div>' +
+        '<div class="modal-actions">' +
+        '<button class="btn btn-secondary" data-act="cancel" type="button">取消</button>' +
+        '<button class="btn ' + (opts.danger ? 'btn-danger-solid' : 'btn-primary') + '" type="submit">' + App.esc(opts.okText || '確定') + '</button>' +
+        '</div></form>'
+      );
+      var form = root.querySelector('form');
+      root.querySelectorAll('[data-choice]').forEach(function (group) {
+        group.querySelectorAll('.seg').forEach(function (b) {
+          b.onclick = function () {
+            group.querySelectorAll('.seg').forEach(function (x) { x.classList.toggle('on', x === b); });
+            form[group.getAttribute('data-choice')].value = b.getAttribute('data-value');
+          };
+        });
+      });
+      form.onsubmit = function (e) {
+        e.preventDefault();
+        var values = {};
+        var missing = [];
+        opts.fields.forEach(function (f) {
+          values[f.name] = String(form[f.name].value || '').trim();
+          if (f.required && !values[f.name]) missing.push(f.label);
+        });
+        if (missing.length) {
+          var err = root.querySelector('[data-role="error"]');
+          err.textContent = '請填寫：' + missing.join('、');
+          err.hidden = false;
+          return;
+        }
+        closeModal();
+        resolve(values);
+      };
+      root.querySelector('[data-act="cancel"]').onclick = function () { closeModal(); resolve(null); };
+      root.querySelector('.modal-backdrop').onclick = function () { closeModal(); resolve(null); };
+    });
+  };
+
   /** 底部選單：items 為 [{ key, label, disabled, hint, danger }]，回傳 Promise<key|null>。 */
   App.sheet = function (title, items) {
     return new Promise(function (resolve) {
@@ -226,7 +294,7 @@
 
   App.render = function () {
     if (!App.state.profile) return;
-    var path = location.hash.replace(/^#/, '') || '/home';
+    var path = location.hash.replace(/^#/, '').split('?')[0] || '/home';
     var match = null;
     App.routes.some(function (r) {
       var m = path.match(r.regex);
@@ -288,11 +356,13 @@
   /** 右下角「＋」新增按鈕（SPEC 5.1） */
   App.onFab = function () {
     App.sheet('新增', [
-      { key: 'todo', label: '新增公共待辦' },
-      { key: 'subtask', label: '新增子任務', disabled: true, hint: '第 3 階段開放' },
-      { key: 'project', label: '新增專案', disabled: true, hint: '第 3 階段開放' }
+      { key: 'project', label: '新增專案' },
+      { key: 'subtask', label: '新增子任務' },
+      { key: 'todo', label: '新增公共待辦' }
     ]).then(function (key) {
-      if (key === 'todo') App.go('/new/todo');
+      if (key === 'todo') App.go('/new/task/todo');
+      if (key === 'subtask') App.go('/new/task/pick');
+      if (key === 'project') App.go('/projects/new');
     });
   };
 

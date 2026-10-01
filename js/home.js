@@ -6,7 +6,7 @@
   var App = window.App;
   var esc = App.esc;
 
-  // ---------- 首頁 ----------
+  // ---------- 首頁（SPEC 5.2）----------
 
   App.route('/home', {
     tab: 'home',
@@ -21,14 +21,99 @@
         '<div class="topbar-greeting">你好，' + esc(p.name) + '</div></div>' +
         '<a class="avatar" href="#/settings" aria-label="個人設定">' + esc(App.initial(p.name)) + '</a>' +
         '</header>' +
-        '<main class="content">' +
-        '<div class="card"><h2>系統建置中</h2>' +
-        '<p>目前是<strong>第 2 階段</strong>：公共待辦。按右下角「＋」可以開一張公共待辦，到「公共待辦」分頁查看、推進與簽核。</p>' +
-        (p.isAdmin ? '<p>到下方「<strong>總覽</strong>」分頁的最下面，可以新增同仁、管理單位。</p>' : '') +
-        '<p class="muted">首頁的待辦摘要、專案、通知等功能會在之後的階段加進來。</p></div>' +
-        installCardHtml() +
-        '</main>';
-      bindInstallCard(page);
+        '<main class="content" id="home-box">' + App.loadingHtml + '</main>';
+      App.api('home').then(function (data) {
+        App.state.home = data;
+        var box = App.$('home-box');
+        if (!box) return;
+        box.innerHTML = homeHtml(data) + installCardHtml();
+        bindHome(box, data);
+        bindInstallCard(page);
+      }).catch(function (err) {
+        var box = App.$('home-box');
+        if (box) box.innerHTML = App.errorHtml(err);
+      });
+    }
+  });
+
+  function homeHtml(d) {
+    var boxes =
+      '<div class="stat-row">' +
+      statBox('overdue', '已逾期', d.counts.overdue) +
+      statBox('review', '待我簽核', d.counts.review) +
+      statBox('assigned', '指派給我', d.counts.assigned) +
+      '</div>';
+
+    var needCount = d.needs.length + d.resumeReminders.length;
+    var needs = '<div class="section-head"><h3 class="section-title">需要我處理</h3>' +
+      (needCount > 3 ? '<a class="section-link" href="#/mine/needs">全部 ' + needCount + ' 項 ›</a>' : '') + '</div>';
+    var reminders = d.resumeReminders.slice(0, 3).map(reminderCard).join('');
+    var rows = d.needs.slice(0, Math.max(0, 3 - Math.min(3, d.resumeReminders.length))).map(function (t) { return App.taskRow(t); }).join('');
+    needs += reminders + (rows ? '<div class="card list">' + rows + '</div>' : '') +
+      (!reminders && !rows ? '<div class="card empty small-empty"><p class="muted">目前沒有需要你處理的事項 👍</p></div>' : '');
+
+    var projects = '<div class="section-head"><h3 class="section-title">我參與的專案</h3>' +
+      (d.projects.length > 3 ? '<a class="section-link" href="#/projects">全部 ' + d.projects.length + ' 個 ›</a>' : '') + '</div>' +
+      (d.projects.length ? '<div class="card list">' + d.projects.slice(0, 3).map(App.projectCard).join('') + '</div>'
+        : '<div class="card empty small-empty"><p class="muted">還沒有參與的專案。</p></div>');
+
+    return boxes + '<div class="home-cols"><div>' + needs + '</div><div>' + projects + '</div></div>';
+  }
+
+  function statBox(kind, label, n) {
+    return '<a class="stat stat-' + kind + '" href="#/mine/' + kind + '"><span class="stat-num">' + n + '</span><span class="stat-label">' + label + '</span></a>';
+  }
+
+  function reminderCard(r) {
+    return '<div class="card reminder">' +
+      '<div><span class="tag tag-paused">暫停中</span> <a href="#/projects/' + encodeURIComponent(r.id) + '"><strong>' + esc(r.id) + ' ' + esc(r.name) + '</strong></a></div>' +
+      '<p class="muted small">已到預計恢復日（' + esc(App.fmtDate(r.resumeDate)) + (r.daysPast ? '，已過 ' + r.daysPast + ' 天' : '') + '）· ' + esc(r.pauseReason) + '</p>' +
+      '<div class="action-row"><button class="btn btn-primary" type="button" data-resume="' + esc(r.id) + '">恢復</button>' +
+      '<button class="btn btn-secondary" type="button" data-extend="' + esc(r.id) + '">延長暫停</button></div></div>';
+  }
+
+  function bindHome(box, d) {
+    var find = function (id) { return d.resumeReminders.filter(function (r) { return r.id === id; })[0]; };
+    box.querySelectorAll('[data-resume]').forEach(function (b) {
+      b.onclick = function () {
+        App.resumeProject(find(b.getAttribute('data-resume'))).then(function (ok) { if (ok) App.render(); });
+      };
+    });
+    box.querySelectorAll('[data-extend]').forEach(function (b) {
+      b.onclick = function () {
+        App.extendPause(find(b.getAttribute('data-extend'))).then(function (ok) { if (ok) App.render(); });
+      };
+    });
+  }
+
+  // ---------- 首頁數字方塊與「全部」清單 ----------
+
+  var MINE = {
+    needs: { title: '需要我處理', empty: '目前沒有需要你處理的事項。' },
+    overdue: { title: '已逾期', empty: '沒有逾期的項目。' },
+    review: { title: '待我簽核', empty: '沒有等你簽核的項目。' },
+    assigned: { title: '指派給我', empty: '沒有指派給你或你單位的未完成項目。' }
+  };
+
+  App.route('/mine/:kind', {
+    tab: 'home',
+    render: function (page, params) {
+      var def = MINE[params.kind];
+      if (!def) { App.go('/home', true); return; }
+      page.innerHTML = App.topbar({ title: def.title, back: '/home', backLabel: '首頁' }) +
+        '<main class="content" id="mine-box">' + App.loadingHtml + '</main>';
+      App.api('home').then(function (d) {
+        var box = App.$('mine-box');
+        if (!box) return;
+        var list = d[params.kind];
+        var reminders = params.kind === 'needs' ? d.resumeReminders.map(reminderCard).join('') : '';
+        box.innerHTML = reminders + (list.length ? '<div class="card list">' + list.map(function (t) { return App.taskRow(t); }).join('') + '</div>'
+          : (reminders ? '' : '<div class="card empty"><p class="muted">' + esc(def.empty) + '</p></div>'));
+        bindHome(box, d);
+      }).catch(function (err) {
+        var box = App.$('mine-box');
+        if (box) box.innerHTML = App.errorHtml(err);
+      });
     }
   });
 
@@ -58,7 +143,6 @@
 
   // ---------- 尚未開放的分頁 ----------
 
-  App.route('/projects', { tab: 'projects', render: App.placeholder('專案', 3, '之後這裡會列出你看得到的所有專案。') });
 
   // ---------- 加到主畫面 ----------
 
