@@ -149,17 +149,18 @@
     var perm = t.permissions;
     var back = t.projectId ? '/projects/' + encodeURIComponent(t.projectId) : (t.status === '已完成' ? '/history' : '/todos');
     var backLabel = t.projectId ? '專案' : (t.status === '已完成' ? '歷史' : '公共待辦');
-    var hasMore = perm.canReassign;
+    var hasMore = perm.canReassign || perm.canEdit;
     page.querySelector('.topbar').outerHTML = App.topbar({ title: '任務詳情', back: back, backLabel: backLabel, more: hasMore });
     App.setActiveTab(t.projectId ? (t.projectState === '已結案' ? 'history' : 'projects') : (t.status === '已完成' ? 'history' : 'todos'));
 
     var actions = perm.actions.map(function (a) {
-      var cls = a.action === 'return' || a.action === 'reopen' ? 'btn-secondary' : 'btn-primary';
+      var cls = ['return', 'reopen', 'back', 'withdraw'].indexOf(a.action) !== -1 ? 'btn-secondary' : 'btn-primary';
       return '<button class="btn ' + cls + '" type="button" data-action="' + esc(a.action) + '">' + esc(a.label) + '</button>';
     }).join('');
 
     App.$('task-box').innerHTML =
-      (perm.readOnly ? '<div class="banner banner-closed">' + (t.closedWithProject ? '隨專案結案' : '專案已結案') + '：此任務目前唯讀。需要時請專案建立者或管理者「取消結案」。</div>' : '') +
+      (perm.readOnlyReason === 'closed' ? '<div class="banner banner-closed">' + (t.closedWithProject ? '隨專案結案' : '專案已結案') + '：此任務在歷史區，唯讀。需要修改請專案建立者或管理者先「取消結案」。</div>' : '') +
+      (perm.readOnlyReason === 'done' ? '<div class="banner banner-closed">已完成：此任務在歷史區，唯讀。需要修改請先「取消完成」。</div>' : '') +
       (perm.pausedBlocked ? '<div class="banner banner-paused">專案暫停中：不能變更狀態，需先恢復專案；仍可添加備註。</div>' : '') +
       '<div class="task-head">' +
       '<div class="task-meta">' + esc(t.id) + ' · ' +
@@ -268,10 +269,11 @@
     if (more) {
       more.onclick = function () {
         App.sheet('更多', [
+          { key: 'edit', label: '編輯任務', disabled: !t.permissions.canEdit },
           { key: 'reassign', label: '修改指派', disabled: !t.permissions.canReassign },
-          { key: 'edit', label: '編輯任務', disabled: true, hint: '規格確認中' },
           { key: 'delete', label: '刪除', disabled: true, hint: '第 4 階段開放' }
         ]).then(function (key) {
+          if (key === 'edit') App.go('/tasks/' + encodeURIComponent(t.id) + '/edit');
           if (key === 'reassign') App.go('/tasks/' + encodeURIComponent(t.id) + '/assign');
         });
       };
@@ -454,9 +456,9 @@
       App.$('new-save').disabled = missing.length > 0;
       App.$('missing-note').textContent = missing.length ? '還缺：' + missing.join('、') : '';
       App.$('field-title').classList.toggle('missing', !title && form.title.dataset.touched === '1');
-      // SPEC 5.7 表單底部提示（文字待規劃端確認 B8）
+      // SPEC 5.7 表單底部提示（D-038）
       var who = a.assignees.length ? picker.names().join('、') : (a.unitId ? App.unitName(a.unitId) + '全體' : '負責人或單位');
-      App.$('notify-note').textContent = '建立後狀態為「未開始」，' + who + '明早 8:00 會收到 Email 通知';
+      App.$('notify-note').textContent = '建立後狀態為「未開始」，' + who + '下個工作日早上 9 點後會收到 Email 通知';
     }
     form.title.oninput = function () { form.title.dataset.touched = '1'; update(); };
     form.place.onchange = update;
@@ -523,6 +525,59 @@
         };
       }).catch(function (err) {
         var box = App.$('assign-page');
+        if (box) box.innerHTML = App.errorHtml(err);
+      });
+    }
+  });
+
+  // ---------- 編輯任務（SPEC 5.4、D-036：標題、說明、期限、文件路徑）----------
+
+  App.route('/tasks/:id/edit', {
+    tab: 'todos',
+    noFab: true,
+    render: function (page, params) {
+      var id = params.id;
+      page.innerHTML = App.topbar({ title: '編輯任務', back: '/tasks/' + encodeURIComponent(id), backLabel: '取消' }) +
+        '<main class="content" id="edit-page">' + App.loadingHtml + '</main>';
+      App.api('tasks.get', { id: id }).then(function (res) {
+        var t = res.task;
+        App.setActiveTab(t.projectId ? 'projects' : 'todos');
+        var box = App.$('edit-page');
+        if (!box) return;
+        if (!t.permissions.canEdit) {
+          box.innerHTML = App.errorHtml({ message: t.permissions.readOnly ? '此任務在歷史區，唯讀。' : '只有發布者或管理者可以編輯任務內容。' });
+          return;
+        }
+        box.innerHTML = '<form class="card form" id="edit-form" novalidate>' +
+          '<p class="muted">' + esc(t.id) + ' · ' + esc(t.projectId ? t.projectName : '公共待辦') + '</p>' +
+          '<label class="field"><span class="field-label">任務標題 <em>必填</em></span>' +
+          '<input class="input" name="title" maxlength="100" value="' + esc(t.title) + '" autocomplete="off"></label>' +
+          '<label class="field"><span class="field-label">說明</span>' +
+          '<textarea class="input textarea" name="description" rows="3" maxlength="2000" placeholder="要做什麼、做到什麼程度算完成">' + esc(t.description) + '</textarea></label>' +
+          '<label class="field"><span class="field-label">期限</span>' +
+          '<input class="input" name="dueDate" type="date" value="' + esc(t.dueDate) + '">' +
+          '<span class="field-hint">清空表示不設期限</span></label>' +
+          '<label class="field"><span class="field-label">文件路徑 <span class="muted small">一行一筆</span></span>' +
+          '<textarea class="input textarea" name="paths" rows="2">' + esc(t.paths.join('\n')) + '</textarea></label>' +
+          '<div class="alert" id="edit-error" role="alert" hidden></div>' +
+          '<button class="btn btn-primary btn-block" type="submit" id="edit-save">儲存</button></form>';
+        var form = App.$('edit-form');
+        form.onsubmit = function (e) {
+          e.preventDefault();
+          var err = App.$('edit-error');
+          if (!form.title.value.trim()) { err.textContent = '請填寫任務標題'; err.hidden = false; return; }
+          App.busy(App.$('edit-save'), App.api('tasks.update', {
+            id: id,
+            title: form.title.value.trim(),
+            description: form.description.value.trim(),
+            dueDate: form.dueDate.value,
+            paths: form.paths.value.split('\n').map(function (p) { return p.trim(); }).filter(Boolean)
+          }), '儲存中…')
+            .then(function () { App.toast('已儲存'); App.go('/tasks/' + encodeURIComponent(id), true); })
+            .catch(function (e2) { err.textContent = e2.message; err.hidden = false; });
+        };
+      }).catch(function (err) {
+        var box = App.$('edit-page');
         if (box) box.innerHTML = App.errorHtml(err);
       });
     }

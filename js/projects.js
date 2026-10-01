@@ -185,9 +185,40 @@
   };
 
   App.resumeProject = function (p) {
-    return App.confirm({ title: '恢復「' + p.name + '」？', message: '子任務會回到原本的狀態；期限不會自動順延，需要時請手動修改。', okText: '恢復' })
-      .then(function (yes) { return yes ? run(App.api('projects.resume', { id: p.id }), '專案已恢復') : false; });
+    return App.confirm({ title: '恢復「' + p.name + '」？', message: '子任務會回到原本的狀態；期限不會自動順延。', okText: '恢復' })
+      .then(function (yes) {
+        if (!yes) return false;
+        return App.api('projects.resume', { id: p.id }).then(function (res) {
+          App.toast('專案已恢復');
+          return res.overdueTasks.length ? adjustOverdue(res.overdueTasks) : true;
+        }).catch(function (err) { App.toast(err.message); return false; });
+      });
   };
+
+  /** 恢復時「以下任務期限已過」：逐項修改期限或直接略過（SPEC 6.1、D-040） */
+  function adjustOverdue(tasks) {
+    return App.formModal({
+      title: '以下任務期限已過',
+      message: '可以直接修改期限，也可以按「略過」之後再處理。',
+      fields: tasks.map(function (t) {
+        return { name: 'd_' + t.id.replace(/\W/g, '_'), label: t.id + ' ' + t.title + '（原期限 ' + App.fmtDate(t.dueDate) + '）', type: 'date', value: t.dueDate, min: App.today() };
+      }),
+      okText: '儲存期限',
+      cancelText: '略過'
+    }).then(function (v) {
+      if (!v) return true;
+      var updates = tasks.filter(function (t) {
+        var nv = v['d_' + t.id.replace(/\W/g, '_')];
+        return nv && nv !== t.dueDate;
+      }).map(function (t) {
+        return App.api('tasks.update', { id: t.id, dueDate: v['d_' + t.id.replace(/\W/g, '_')] });
+      });
+      return Promise.all(updates).then(function () {
+        if (updates.length) App.toast('已更新 ' + updates.length + ' 項期限');
+        return true;
+      }).catch(function (err) { App.toast(err.message); return true; });
+    });
+  }
 
   App.extendPause = function (p) {
     return App.formModal({

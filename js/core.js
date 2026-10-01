@@ -222,7 +222,7 @@
         }).join('') +
         '<div class="alert" data-role="error" hidden></div>' +
         '<div class="modal-actions">' +
-        '<button class="btn btn-secondary" data-act="cancel" type="button">取消</button>' +
+        '<button class="btn btn-secondary" data-act="cancel" type="button">' + App.esc(opts.cancelText || '取消') + '</button>' +
         '<button class="btn ' + (opts.danger ? 'btn-danger-solid' : 'btn-primary') + '" type="submit">' + App.esc(opts.okText || '確定') + '</button>' +
         '</div></form>'
       );
