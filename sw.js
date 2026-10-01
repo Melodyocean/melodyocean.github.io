@@ -1,9 +1,9 @@
 // Service worker：讓網站可以「加到主畫面」。
 // 策略：一律先抓網路上的最新版，抓不到（離線）才用快取，避免同仁看到舊版。
-const CACHE = 'pt-v0.2.0';
+const CACHE = 'pt-v0.3.0';
 const SHELL = [
   './', 'index.html', 'styles.css', 'config.js', 'manifest.webmanifest', 'icons/icon-192.png',
-  'js/core.js', 'js/auth.js', 'js/home.js', 'js/admin.js'
+  'js/core.js', 'js/auth.js', 'js/home.js', 'js/admin.js', 'js/tasks.js'
 ];
 
 self.addEventListener('install', (event) => {

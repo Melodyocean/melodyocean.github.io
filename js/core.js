@@ -84,6 +84,46 @@
     return u ? u.name + (u.active ? '' : '（已停用）') : id;
   };
 
+  // ---------- 日期（一律以台灣時間的 yyyy-MM-dd 處理）----------
+
+  App.today = function () {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  };
+
+  App.addDays = function (dateStr, n) {
+    var p = dateStr.split('-').map(Number);
+    var d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n));
+    return d.toISOString().slice(0, 10);
+  };
+
+  App.weekday = function (dateStr) {
+    var p = dateStr.split('-').map(Number);
+    return new Date(Date.UTC(p[0], p[1] - 1, p[2])).getUTCDay();
+  };
+
+  /** 10/5（一） */
+  App.fmtDate = function (dateStr) {
+    if (!dateStr) return '';
+    var p = String(dateStr).slice(0, 10).split('-').map(Number);
+    return p[1] + '/' + p[2] + '（' + '日一二三四五六'.charAt(App.weekday(String(dateStr).slice(0, 10))) + '）';
+  };
+
+  /** 9/26 17:06 */
+  App.fmtDateTime = function (stamp) {
+    if (!stamp) return '';
+    var m = String(stamp).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+    return m ? Number(m[2]) + '/' + Number(m[3]) + ' ' + m[4] + ':' + m[5] : String(stamp);
+  };
+
+  App.copyText = function (text) {
+    var done = function () { App.toast('已複製'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { App.toast('無法複製，請長按文字手動複製'); });
+    } else {
+      App.toast('無法複製，請長按文字手動複製');
+    }
+  };
+
   App.initial = function (name) {
     return (String(name || '?').trim().charAt(0) || '?').toUpperCase();
   };
@@ -126,15 +166,17 @@
       var root = openModal(
         '<h2>' + App.esc(opts.title) + '</h2>' +
         '<form class="modal-form">' +
-        '<input class="input" name="value" maxlength="' + (opts.maxLength || 50) + '" value="' + App.esc(opts.value || '') + '" placeholder="' + App.esc(opts.placeholder || '') + '" autocomplete="off">' +
+        (opts.multiline
+          ? '<textarea class="input textarea" name="value" rows="5" maxlength="' + (opts.maxLength || 2000) + '" placeholder="' + App.esc(opts.placeholder || '') + '">' + App.esc(opts.value || '') + '</textarea>'
+          : '<input class="input" name="value" maxlength="' + (opts.maxLength || 50) + '" value="' + App.esc(opts.value || '') + '" placeholder="' + App.esc(opts.placeholder || '') + '" autocomplete="off">') +
         '<div class="modal-actions">' +
         '<button class="btn btn-secondary" data-act="cancel" type="button">取消</button>' +
         '<button class="btn btn-primary" type="submit">' + App.esc(opts.okText || '確定') + '</button>' +
         '</div></form>'
       );
-      var input = root.querySelector('input');
+      var input = root.querySelector('input, textarea');
       input.focus();
-      input.select();
+      if (!opts.multiline) input.select();
       root.querySelector('form').onsubmit = function (e) {
         e.preventDefault();
         var v = input.value.trim();
@@ -142,6 +184,26 @@
         closeModal();
         resolve(v);
       };
+      root.querySelector('[data-act="cancel"]').onclick = function () { closeModal(); resolve(null); };
+      root.querySelector('.modal-backdrop').onclick = function () { closeModal(); resolve(null); };
+    });
+  };
+
+  /** 底部選單：items 為 [{ key, label, disabled, hint, danger }]，回傳 Promise<key|null>。 */
+  App.sheet = function (title, items) {
+    return new Promise(function (resolve) {
+      var root = openModal(
+        (title ? '<h2>' + App.esc(title) + '</h2>' : '') +
+        '<div class="sheet-list">' + items.map(function (it) {
+          return '<button type="button" class="sheet-item' + (it.danger ? ' danger' : '') + '" data-key="' + App.esc(it.key) + '"' + (it.disabled ? ' disabled' : '') + '>' +
+            '<span>' + App.esc(it.label) + '</span>' + (it.hint ? '<span class="muted small">' + App.esc(it.hint) + '</span>' : '') + '</button>';
+        }).join('') + '</div>' +
+        '<button class="btn btn-secondary btn-block" data-act="cancel" type="button">取消</button>'
+      );
+      root.querySelector('.modal-box').classList.add('sheet');
+      root.querySelectorAll('.sheet-item').forEach(function (b) {
+        b.onclick = function () { closeModal(); resolve(b.getAttribute('data-key')); };
+      });
       root.querySelector('[data-act="cancel"]').onclick = function () { closeModal(); resolve(null); };
       root.querySelector('.modal-backdrop').onclick = function () { closeModal(); resolve(null); };
     });
@@ -178,7 +240,8 @@
       App.go('/home', true);
       return;
     }
-    renderTabbar(match.route.opts.tab);
+    renderTabbar(match.route.opts.hideTabbar ? null : match.route.opts.tab);
+    App.$('view-app').classList.toggle('no-tabbar', !!match.route.opts.hideTabbar);
     var page = App.$('page');
     page.innerHTML = '';
     window.scrollTo(0, 0);
@@ -186,6 +249,10 @@
   };
 
   window.addEventListener('hashchange', App.render);
+  document.addEventListener('DOMContentLoaded', function () {
+    var fab = App.$('fab');
+    if (fab) fab.onclick = function () { App.onFab(); };
+  });
 
   // ---------- 底部分頁列（SPEC 5.1）----------
 
@@ -207,6 +274,9 @@
 
   function renderTabbar(activeTab) {
     var nav = App.$('tabbar');
+    nav.hidden = !activeTab;
+    App.$('fab').hidden = !activeTab;
+    if (!activeTab) return;
     nav.innerHTML = TABS.filter(function (t) { return !t.admin || App.state.profile.isAdmin; }).map(function (t) {
       return '<a class="tab' + (t.id === activeTab ? ' active' : '') + '" href="#' + t.path + '"' +
         (t.id === activeTab ? ' aria-current="page"' : '') + '>' +
@@ -214,6 +284,17 @@
         '<span>' + t.label + '</span></a>';
     }).join('');
   }
+
+  /** 右下角「＋」新增按鈕（SPEC 5.1） */
+  App.onFab = function () {
+    App.sheet('新增', [
+      { key: 'todo', label: '新增公共待辦' },
+      { key: 'subtask', label: '新增子任務', disabled: true, hint: '第 3 階段開放' },
+      { key: 'project', label: '新增專案', disabled: true, hint: '第 3 階段開放' }
+    ]).then(function (key) {
+      if (key === 'todo') App.go('/new/todo');
+    });
+  };
 
   // ---------- 共用畫面片段 ----------
 
@@ -223,7 +304,8 @@
       return '<header class="topbar topbar-sub">' +
         '<a class="btn-back" href="#' + opts.back + '">‹ ' + App.esc(opts.backLabel || '返回') + '</a>' +
         '<div class="topbar-title">' + App.esc(opts.title) + '</div>' +
-        '<span class="topbar-spacer"></span></header>';
+        (opts.more ? '<button class="btn-more" type="button" id="btn-more" aria-label="更多">⋯</button>' : '<span class="topbar-spacer"></span>') +
+        '</header>';
     }
     return '<header class="topbar"><div class="topbar-title-main">' + App.esc(opts.title) + '</div></header>';
   };

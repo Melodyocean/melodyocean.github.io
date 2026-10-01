@@ -188,6 +188,9 @@ a { color: var(--primary); }
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip, .seg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   padding: 0 14px;
   border-radius: 999px;
@@ -313,3 +316,168 @@ a { color: var(--primary); }
   z-index: 100;
   text-align: center;
 }
+
+/* ---------- 第 2 階段：任務 ---------- */
+
+/* 狀態標籤（SPEC 5.5） */
+.status {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.s-todo { background: var(--c-todo); }
+.s-doing { background: var(--c-doing); }
+.s-waiting { background: var(--c-waiting); }
+.s-review { background: var(--c-review); }
+.s-done { background: var(--c-done); }
+
+.due { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.due.overdue { color: var(--c-overdue); font-weight: 700; }
+.due.soon { color: var(--c-review); font-weight: 500; }
+
+.task-row {
+  display: flex;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  text-decoration: none;
+  min-height: 56px;
+}
+.task-row:last-child { border-bottom: none; }
+.task-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.task-title { font-weight: 500; }
+.task-id { color: var(--muted); font-size: 13px; font-weight: 400; }
+.task-sub { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.task-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.note-count { font-size: 12px; color: var(--muted); }
+
+/* 右下角新增按鈕 */
+.fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 30px;
+  line-height: 1;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  cursor: pointer;
+  z-index: 25;
+}
+
+/* 沒有分頁列的頁面（詳情、表單） */
+.no-tabbar .content { padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+.no-tabbar .content.has-composer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+
+.btn-more {
+  min-width: 64px;
+  min-height: var(--tap);
+  border: none;
+  background: none;
+  font-size: 24px;
+  color: var(--text);
+  text-align: right;
+  cursor: pointer;
+}
+
+/* 任務詳情 */
+.task-head { margin: 4px 4px 16px; }
+.task-meta { color: var(--muted); font-size: 14px; }
+.task-h1 { font-size: 21px; margin: 4px 0 8px; }
+.task-desc { white-space: pre-wrap; margin: 0; }
+
+.steps-bar { list-style: none; display: flex; gap: 4px; padding: 0; margin: 0; }
+.steps-bar li { flex: 1; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.steps-bar .bar { height: 6px; width: 100%; border-radius: 3px; background: #e5e7eb; }
+.steps-bar li.past .bar { background: #93c5fd; }
+.steps-bar li.current .bar { background: currentColor; }
+.steps-bar .label { font-size: 12px; color: var(--muted); }
+.steps-bar li.current .label { font-weight: 700; }
+.steps-bar li.current.s-todo { color: var(--c-todo); }
+.steps-bar li.current.s-doing { color: var(--c-doing); }
+.steps-bar li.current.s-waiting { color: var(--c-waiting); }
+.steps-bar li.current.s-review { color: var(--c-review); }
+.steps-bar li.current.s-done { color: var(--c-done); }
+.steps-bar li.current { background: none; }
+.steps-bar li.current .label { color: inherit; }
+
+.action-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.action-row .btn { flex: 1; min-width: 120px; }
+
+.profile .paths { flex-direction: column; gap: 6px; }
+.profile .paths dd { text-align: left; display: flex; flex-direction: column; gap: 6px; }
+.path-item { display: flex; align-items: center; gap: 8px; }
+.path-item code { flex: 1; font-size: 13px; background: #f3f4f6; padding: 6px 8px; border-radius: 6px; word-break: break-all; }
+
+.timeline { padding: 4px 16px; }
+.tl-note { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.tl-status { padding: 8px 0; border-bottom: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+.timeline > :last-child { border-bottom: none; }
+.tl-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.tl-body { white-space: pre-wrap; margin-top: 4px; word-break: break-word; }
+.link-btn {
+  border: none;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 0;
+  min-height: 36px;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.composer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 20;
+}
+.composer .textarea { flex: 1; resize: none; max-height: 160px; }
+.textarea { resize: vertical; line-height: 1.5; }
+
+/* 表單補充 */
+.form .field.missing .input { border-color: var(--danger); }
+.sub-label { font-size: 13px; color: var(--muted); margin: 10px 0 6px; }
+.chip:disabled { opacity: 0.4; cursor: not-allowed; }
+.chip-date { position: relative; display: inline-flex; align-items: center; overflow: hidden; }
+.chip-date.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.chip-date input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+.form-note { color: var(--muted); font-size: 14px; background: #f9fafb; border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; }
+.form .link-btn { margin: 0 0 12px; display: block; }
+
+/* 底部選單 */
+.modal-box.sheet { align-self: flex-end; margin-bottom: env(safe-area-inset-bottom); }
+.sheet-list { display: flex; flex-direction: column; margin: 8px 0 12px; }
+.sheet-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 52px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+}
+.sheet-item:disabled { color: #9ca3af; cursor: not-allowed; }
+.sheet-item.danger { color: var(--danger); }

@@ -23,9 +23,9 @@
         '</header>' +
         '<main class="content">' +
         '<div class="card"><h2>系統建置中</h2>' +
-        '<p>目前是<strong>第 1 階段</strong>：成員與單位管理。</p>' +
+        '<p>目前是<strong>第 2 階段</strong>：公共待辦。按右下角「＋」可以開一張公共待辦，到「公共待辦」分頁查看、推進與簽核。</p>' +
         (p.isAdmin ? '<p>到下方「<strong>總覽</strong>」分頁的最下面，可以新增同仁、管理單位。</p>' : '') +
-        '<p class="muted">任務、專案、通知等功能會一個階段一個階段加進來。</p></div>' +
+        '<p class="muted">首頁的待辦摘要、專案、通知等功能會在之後的階段加進來。</p></div>' +
         installCardHtml() +
         '</main>';
       bindInstallCard(page);
@@ -59,8 +59,6 @@
   // ---------- 尚未開放的分頁 ----------
 
   App.route('/projects', { tab: 'projects', render: App.placeholder('專案', 3, '之後這裡會列出你看得到的所有專案。') });
-  App.route('/todos', { tab: 'todos', render: App.placeholder('公共待辦', 2, '之後這裡會列出所有未完成的公共待辦。') });
-  App.route('/history', { tab: 'history', render: App.placeholder('歷史', 2, '之後這裡會列出已完成的項目與已結案的專案。') });
 
   // ---------- 加到主畫面 ----------
 
