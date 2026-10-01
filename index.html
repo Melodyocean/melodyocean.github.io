@@ -1,21 +1,103 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="zh-Hant-TW">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>內部專案追蹤系統</title>
-  <style>
-    body { margin: 0; padding: 48px 16px; font-family: "Noto Sans TC", "PingFang TC", sans-serif; color: #1f2937; background: #f9fafb; line-height: 1.7; }
-    main { max-width: 560px; margin: 0 auto; }
-    h1 { font-size: 24px; margin: 0 0 12px; }
-    a { color: #2563eb; }
-  </style>
+  <meta name="description" content="本公司內部使用的專案與任務追蹤系統。">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="color-scheme" content="light">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="專案追蹤">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main>
-    <h1>內部專案追蹤系統</h1>
-    <p>本系統僅供本公司同仁內部使用，目前建置中。</p>
-    <p><a href="privacy.html">隱私權政策</a></p>
-  </main>
+  <div id="app">
+    <!-- 載入中 -->
+    <section class="view view-center" id="view-loading">
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="muted">載入中…</p>
+    </section>
+
+    <!-- 在 LINE 等 App 內建瀏覽器開啟時 -->
+    <section class="view view-center" id="view-inapp" hidden>
+      <img class="app-icon" src="icons/icon-192.png" alt="">
+      <h1>請改用瀏覽器開啟</h1>
+      <p class="muted">LINE、Facebook 等 App 內建的瀏覽器無法使用 Google 登入。</p>
+      <ol class="steps">
+        <li>點右上角「⋯」或分享按鈕</li>
+        <li>選「用瀏覽器開啟」（Safari 或 Chrome）</li>
+      </ol>
+      <button class="btn btn-secondary" id="btn-copy-link" type="button">複製網址</button>
+      <p class="hint" id="copy-result" role="status"></p>
+    </section>
+
+    <!-- 登入 -->
+    <section class="view view-center" id="view-login" hidden>
+      <img class="app-icon" src="icons/icon-192.png" alt="">
+      <h1>內部專案追蹤系統</h1>
+      <p class="muted">本公司同仁專用，請用你的 Google 帳號登入。</p>
+      <div id="google-button" class="google-button"></div>
+      <div class="alert" id="login-error" role="alert" hidden></div>
+      <p class="hint" id="login-busy" role="status" hidden>登入中，請稍候…</p>
+      <p class="footer-link"><a href="privacy.html">隱私權政策</a></p>
+    </section>
+
+    <!-- 首頁 -->
+    <section class="view" id="view-home" hidden>
+      <header class="topbar">
+        <div>
+          <div class="topbar-date" id="home-date"></div>
+          <div class="topbar-greeting">你好，<span id="home-name"></span></div>
+        </div>
+        <button class="avatar" id="btn-open-settings" type="button" aria-label="個人設定"></button>
+      </header>
+      <main class="content">
+        <div class="card">
+          <h2>系統建置中</h2>
+          <p>目前是<strong>第 0 階段</strong>：登入功能測試。你已經成功登入了！</p>
+          <p class="muted">之後的功能（任務、專案、通知…）會一個階段一個階段加進來。</p>
+        </div>
+        <div class="card" id="install-card" hidden>
+          <h2>加到手機主畫面</h2>
+          <p id="install-text"></p>
+          <button class="btn btn-primary" id="btn-install" type="button" hidden>安裝到這台裝置</button>
+        </div>
+      </main>
+    </section>
+
+    <!-- 個人設定 -->
+    <section class="view" id="view-settings" hidden>
+      <header class="topbar topbar-sub">
+        <button class="btn-back" id="btn-back-home" type="button" aria-label="返回">‹ 返回</button>
+        <div class="topbar-title">個人設定</div>
+        <span class="topbar-spacer"></span>
+      </header>
+      <main class="content">
+        <dl class="card profile">
+          <div><dt>姓名</dt><dd id="profile-name"></dd></div>
+          <div><dt>Gmail</dt><dd id="profile-email"></dd></div>
+          <div><dt>所屬單位</dt><dd id="profile-units"></dd></div>
+          <div><dt>角色</dt><dd id="profile-role"></dd></div>
+        </dl>
+        <button class="btn btn-danger btn-block" id="btn-logout" type="button">登出</button>
+        <p class="hint center" id="app-version"></p>
+      </main>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>

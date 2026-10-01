@@ -1,0 +1,185 @@
+:root {
+  /* 狀態色（SPEC 5.5，全系統一致） */
+  --c-todo: #6b7280;      /* 未開始＝灰 */
+  --c-doing: #2563eb;     /* 進行中＝藍 */
+  --c-waiting: #7c3aed;   /* 等待外部＝紫 */
+  --c-review: #ea580c;    /* 待簽核＝橘 */
+  --c-done: #16a34a;      /* 已完成＝綠 */
+  --c-overdue: #dc2626;   /* 逾期紅字 */
+
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --danger: #dc2626;
+  --radius: 12px;
+  --tap: 44px;            /* 可點擊區域最小高度 */
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+
+[hidden] { display: none !important; }
+
+h1 { font-size: 22px; margin: 16px 0 8px; }
+h2 { font-size: 17px; margin: 0 0 8px; }
+p { margin: 0 0 8px; }
+a { color: var(--primary); }
+
+.muted { color: var(--muted); }
+.hint { color: var(--muted); font-size: 14px; margin-top: 12px; }
+.center { text-align: center; }
+
+.view {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.view-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 32px 16px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.app-icon { width: 72px; height: 72px; border-radius: 18px; }
+
+.google-button { margin-top: 24px; min-height: var(--tap); }
+
+.alert {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: #fef2f2;
+  color: #991b1b;
+  text-align: left;
+  font-size: 15px;
+  width: 100%;
+}
+
+.footer-link { margin-top: 32px; font-size: 14px; }
+
+.steps { text-align: left; margin: 8px 0 16px; padding-left: 20px; }
+
+/* 頂部列 */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar-date { color: var(--muted); font-size: 14px; }
+.topbar-greeting { font-size: 20px; font-weight: 700; }
+.topbar-title { font-size: 17px; font-weight: 700; }
+.topbar-spacer { width: 64px; }
+
+.avatar {
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.btn-back {
+  min-height: var(--tap);
+  width: 64px;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+}
+
+.content { padding: 16px; max-width: 640px; margin: 0 auto; }
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+}
+
+.profile div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.profile div:last-child { border-bottom: none; }
+.profile dt { color: var(--muted); flex-shrink: 0; }
+.profile dd { margin: 0; text-align: right; word-break: break-all; }
+
+/* 按鈕 */
+.btn {
+  min-height: var(--tap);
+  padding: 0 20px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.btn-block { width: 100%; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+.btn-danger { background: var(--surface); color: var(--danger); border-color: var(--border); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 12px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  background: #111827;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 15px;
+  max-width: calc(100% - 32px);
+  z-index: 100;
+}
