@@ -51,53 +51,22 @@
       <p class="footer-link"><a href="privacy.html">隱私權政策</a></p>
     </section>
 
-    <!-- 首頁 -->
-    <section class="view" id="view-home" hidden>
-      <header class="topbar">
-        <div>
-          <div class="topbar-date" id="home-date"></div>
-          <div class="topbar-greeting">你好，<span id="home-name"></span></div>
-        </div>
-        <button class="avatar" id="btn-open-settings" type="button" aria-label="個人設定"></button>
-      </header>
-      <main class="content">
-        <div class="card">
-          <h2>系統建置中</h2>
-          <p>目前是<strong>第 0 階段</strong>：登入功能測試。你已經成功登入了！</p>
-          <p class="muted">之後的功能（任務、專案、通知…）會一個階段一個階段加進來。</p>
-        </div>
-        <div class="card" id="install-card" hidden>
-          <h2>加到手機主畫面</h2>
-          <p id="install-text"></p>
-          <button class="btn btn-primary" id="btn-install" type="button" hidden>安裝到這台裝置</button>
-        </div>
-      </main>
-    </section>
-
-    <!-- 個人設定 -->
-    <section class="view" id="view-settings" hidden>
-      <header class="topbar topbar-sub">
-        <button class="btn-back" id="btn-back-home" type="button" aria-label="返回">‹ 返回</button>
-        <div class="topbar-title">個人設定</div>
-        <span class="topbar-spacer"></span>
-      </header>
-      <main class="content">
-        <dl class="card profile">
-          <div><dt>姓名</dt><dd id="profile-name"></dd></div>
-          <div><dt>Gmail</dt><dd id="profile-email"></dd></div>
-          <div><dt>所屬單位</dt><dd id="profile-units"></dd></div>
-          <div><dt>角色</dt><dd id="profile-role"></dd></div>
-        </dl>
-        <button class="btn btn-danger btn-block" id="btn-logout" type="button">登出</button>
-        <p class="hint center" id="app-version"></p>
-      </main>
+    <!-- 登入後的主畫面：內容依網址切換，底部固定分頁列 -->
+    <section class="view" id="view-app" hidden>
+      <div id="page"></div>
+      <nav class="tabbar" id="tabbar" aria-label="主要分頁"></nav>
     </section>
   </div>
 
   <div class="toast" id="toast" role="status" hidden></div>
+  <div class="modal" id="modal" hidden></div>
 
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="js/core.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/home.js"></script>
+  <script src="js/admin.js"></script>
+  <script>App.start();</script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>
