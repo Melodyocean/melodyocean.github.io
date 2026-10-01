@@ -150,8 +150,9 @@
         items.push({ key: 'resume', label: '恢復專案' });
         items.push({ key: 'extend', label: '延長暫停' });
       }
-      if (perm.canClose) items.push({ key: 'close', label: '結案', danger: true });
+      if (perm.canClose) items.push({ key: 'close', label: '結案' });
       if (perm.canReopen) items.push({ key: 'reopen', label: '取消結案' });
+      if (perm.canDelete) items.push({ key: 'delete', label: '刪除專案', danger: true });
       App.sheet('更多', items).then(function (key) {
         if (key === 'edit' || key === 'members') App.go('/projects/' + encodeURIComponent(p.id) + '/edit' + (key === 'members' ? '?members' : ''));
         if (key === 'pause') App.pauseProject(p).then(function (ok) { if (ok) loadProject(page, p.id); });
@@ -159,6 +160,7 @@
         if (key === 'extend') App.extendPause(p).then(function (ok) { if (ok) loadProject(page, p.id); });
         if (key === 'close') closeProject(p).then(function (ok) { if (ok) loadProject(page, p.id); });
         if (key === 'reopen') reopenProject(p).then(function (ok) { if (ok) loadProject(page, p.id); });
+        if (key === 'delete') deleteProject(p);
       });
     };
   }
@@ -255,6 +257,22 @@
       }).then(function (v) {
         return v ? run(App.api('projects.close', { id: p.id, reason: v.reason, note: v.note }), '專案已結案，移到歷史區') : false;
       });
+    });
+  }
+
+  /** 刪除專案：子任務（含他人建立的）一起隱藏（SPEC 6.7、D-043） */
+  function deleteProject(p) {
+    App.confirm({
+      title: '刪除「' + p.name + '」？',
+      message: '將一併隱藏 ' + p.total + ' 個子任務，確定刪除？\n刪除後管理者可以在「已刪除項目」還原。',
+      okText: '刪除',
+      danger: true
+    }).then(function (yes) {
+      if (!yes) return;
+      App.api('projects.delete', { id: p.id }).then(function () {
+        App.toast('已刪除 ' + p.id);
+        App.go(p.state === '已結案' ? '/history' : '/projects', true);
+      }).catch(function (err) { App.toast(err.message); });
     });
   }
 

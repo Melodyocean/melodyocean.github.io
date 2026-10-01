@@ -21,8 +21,8 @@
         '<div class="card list">' +
         '<a class="list-row" href="#/admin/members"><span class="list-main">成員管理</span><span class="chev">›</span></a>' +
         '<a class="list-row" href="#/admin/units"><span class="list-main">單位管理</span><span class="chev">›</span></a>' +
-        '<div class="list-row disabled"><span class="list-main">操作紀錄</span><span class="muted small">第 4 階段開放</span></div>' +
-        '<div class="list-row disabled"><span class="list-main">已刪除項目</span><span class="muted small">第 4 階段開放</span></div>' +
+        '<a class="list-row" href="#/admin/logs"><span class="list-main">操作紀錄</span><span class="chev">›</span></a>' +
+        '<a class="list-row" href="#/admin/deleted"><span class="list-main">已刪除項目</span><span class="chev">›</span></a>' +
         '</div></main>';
     }
   });

@@ -574,3 +574,55 @@ em.req { font-style: normal; color: var(--danger); font-size: 12px; }
 /* 打字時收起分頁列，輸入框貼齊底部 */
 .composing .tabbar { display: none; }
 .composing .composer { bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+
+/* ---------- 第 4 階段：等待外部、搜尋、管理紀錄 ---------- */
+
+.due.waiting, .due.follow-today, .due.follow-overdue { color: var(--c-waiting); }
+.due.follow-overdue, strong.follow-overdue { font-weight: 700; }
+.follow-today, .follow-overdue { color: var(--c-waiting); }
+.tag-waiting { background: #f5f3ff; color: var(--c-waiting); }
+
+.waiting-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f5f3ff;
+  border: 1px solid #ddd6fe;
+  color: #4c1d95;
+}
+.waiting-title { font-weight: 700; }
+.waiting-note { margin: 2px 0 6px; white-space: pre-wrap; }
+.waiting-meta { font-size: 14px; margin-bottom: 8px; }
+.btn-waiting { background: var(--c-waiting); color: #fff; }
+.btn-waiting-outline { background: #fff; color: var(--c-waiting); border-color: #c4b5fd; }
+.waiting-box .btn-small { margin-left: 0; }
+
+.tl-tools { margin-left: auto; display: flex; gap: 12px; }
+.tl-tools .link-btn { margin-left: 0; }
+.link-btn.danger { color: var(--danger); }
+
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.icon-btn {
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  background: #f3f4f6;
+}
+.icon-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+.date-range { display: flex; align-items: center; gap: 8px; }
+.date-range .input { flex: 1; min-width: 0; }
+
+.log-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.log-row:last-child { border-bottom: none; }
+.log-row.has-detail { cursor: pointer; }
+.log-head { word-break: break-word; }
+.log-action { font-weight: 700; }
+.log-detail { display: none; gap: 12px; margin-top: 8px; font-size: 14px; }
+.log-row.open .log-detail { display: grid; grid-template-columns: 1fr 1fr; }
+.log-col { background: #f9fafb; border-radius: 8px; padding: 8px 10px; word-break: break-word; }
+.log-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }

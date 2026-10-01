@@ -18,6 +18,9 @@
 
   App.dueHtml = function (t) {
     if (t.status === '已完成') return t.completedAt ? '<span class="due">完成於 ' + esc(App.fmtDate(t.completedAt)) + '</span>' : '';
+    if (t.waiting && t.waiting.followUpState === 'overdue') return '<span class="due follow-overdue">追蹤逾期 ' + t.waiting.followUpOverdueDays + ' 天</span>';
+    if (t.waiting && t.waiting.followUpState === 'today') return '<span class="due follow-today">今天該追蹤</span>';
+    if (t.waiting && t.duePassedWhileWaiting) return '<span class="due waiting">已過（等待外部中）</span>';
     if (!t.dueDate) return '';
     if (t.overdueDays > 0) return '<span class="due overdue">逾期 ' + t.overdueDays + ' 天</span>';
     if (t.daysLeft === 0) return '<span class="due soon">今天到期</span>';
@@ -37,6 +40,7 @@
       '<span class="task-title"><span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + '</span>' +
       '<span class="task-sub">' + App.statusBadge(t.status) +
       (t.closedWithProject ? ' <span class="tag tag-paused">隨專案結案</span>' : '') +
+      (t.waiting ? ' <span class="tag tag-waiting">等' + esc(t.waiting.waitingFor) + '</span>' : '') +
       (t.projectPaused && !opts.inProject ? ' <span class="tag tag-paused">暫停中</span>' : '') +
       ' <span>' + place + whoHtml(t) + '</span></span>' +
       '</span>' +
@@ -140,6 +144,7 @@
     if (!t.dueDate) return '<span class="muted">未設定</span>';
     var text = esc(App.fmtDate(t.dueDate));
     if (t.status === '已完成') return text;
+    if (t.duePassedWhileWaiting) return text + ' <span class="due waiting">已過（等待外部中）</span>';
     if (t.overdueDays > 0) return text + ' <span class="due overdue">逾期 ' + t.overdueDays + ' 天</span>';
     if (t.daysLeft === 0) return text + ' <span class="due soon">今天到期</span>';
     return text + ' <span class="muted">（剩 ' + t.daysLeft + ' 天）</span>';
@@ -149,12 +154,13 @@
     var perm = t.permissions;
     var back = t.projectId ? '/projects/' + encodeURIComponent(t.projectId) : (t.status === '已完成' ? '/history' : '/todos');
     var backLabel = t.projectId ? '專案' : (t.status === '已完成' ? '歷史' : '公共待辦');
-    var hasMore = perm.canReassign || perm.canEdit;
+    var hasMore = perm.canReassign || perm.canEdit || perm.canDelete;
     page.querySelector('.topbar').outerHTML = App.topbar({ title: '任務詳情', back: back, backLabel: backLabel, more: hasMore });
     App.setActiveTab(t.projectId ? (t.projectState === '已結案' ? 'history' : 'projects') : (t.status === '已完成' ? 'history' : 'todos'));
 
     var actions = perm.actions.map(function (a) {
-      var cls = ['return', 'reopen', 'back', 'withdraw'].indexOf(a.action) !== -1 ? 'btn-secondary' : 'btn-primary';
+      var cls = ['return', 'reopen', 'back', 'withdraw'].indexOf(a.action) !== -1 ? 'btn-secondary'
+        : a.action === 'wait' ? 'btn-waiting-outline' : a.action === 'resume' ? 'btn-waiting' : 'btn-primary';
       return '<button class="btn ' + cls + '" type="button" data-action="' + esc(a.action) + '">' + esc(a.label) + '</button>';
     }).join('');
 
@@ -170,6 +176,7 @@
       '</div>' +
 
       '<div class="card">' + stepsHtml(t.status) +
+      (t.waiting ? waitingBlock(t) : '') +
       (actions ? '<div class="action-row">' + actions + '</div>' : '') +
       '</div>' +
 
@@ -205,8 +212,37 @@
     return '<div class="tl-note">' +
       '<div class="tl-head"><strong>' + esc(n.authorName) + '</strong> <span class="muted small">' + esc(App.fmtDateTime(n.createdAt)) +
       (n.editedAt ? ' · 已編輯（' + esc(App.fmtDateTime(n.editedAt)) + '）' : '') + '</span>' +
-      (n.canEdit ? '<button class="link-btn" type="button" data-edit="' + esc(n.id) + '">編輯</button>' : '') + '</div>' +
+      (n.canEdit ? '<span class="tl-tools"><button class="link-btn" type="button" data-edit="' + esc(n.id) + '">編輯</button>' +
+        '<button class="link-btn danger" type="button" data-del-note="' + esc(n.id) + '">刪除</button></span>' : '') + '</div>' +
       '<div class="tl-body">' + esc(n.content) + '</div></div>';
+  }
+
+  /** 等待外部的紫色區塊（SPEC 5.4） */
+  function waitingBlock(t) {
+    var w = t.waiting;
+    var follow = w.followUpState === 'overdue' ? '<strong class="follow-overdue">追蹤逾期 ' + w.followUpOverdueDays + ' 天</strong>'
+      : w.followUpState === 'today' ? '<strong class="follow-today">今天該追蹤</strong>'
+        : '剩 ' + w.followUpDaysLeft + ' 天';
+    return '<div class="waiting-box">' +
+      '<div class="waiting-title">正在等待：' + esc(w.waitingFor) + '</div>' +
+      '<div class="waiting-note">' + esc(w.note) + '</div>' +
+      '<div class="waiting-meta">下次追蹤日：' + esc(App.fmtDate(w.followUpDate)) + '（' + follow + '）　已等待 ' + w.waitingDays + ' 天</div>' +
+      (t.permissions.canSetFollowUp ? '<button class="btn btn-small btn-waiting-outline" type="button" id="btn-followup">改追蹤日</button>' : '') +
+      '</div>';
+  }
+
+  /** 改為等待外部時的必填資料（SPEC 6.4） */
+  function askWaiting() {
+    return App.formModal({
+      title: '改為等待外部',
+      message: '等待期間不計逾期；到了下次追蹤日會提醒負責人追蹤。',
+      fields: [
+        { name: 'waitingFor', label: '正在等待', type: 'choice', options: ['客戶', '供應商', '其他'], required: true },
+        { name: 'waitingNote', label: '等待說明', required: true, placeholder: '例：等客戶 B 確認 Rev.C 圖面', maxLength: 100 },
+        { name: 'followUpDate', label: '下次追蹤日', type: 'date', required: true, value: App.addDays(App.today(), 7), min: App.today() }
+      ],
+      okText: '改為等待外部'
+    });
   }
 
   var CONFIRM = {
@@ -219,10 +255,13 @@
     App.$('task-box').querySelectorAll('[data-action]').forEach(function (btn) {
       btn.onclick = function () {
         var action = btn.getAttribute('data-action');
-        var ask = CONFIRM[action] ? App.confirm(CONFIRM[action]) : Promise.resolve(true);
+        var ask = action === 'wait' ? askWaiting()
+          : CONFIRM[action] ? App.confirm(CONFIRM[action]) : Promise.resolve(true);
         ask.then(function (yes) {
           if (!yes) return;
-          App.busy(btn, App.api('tasks.setStatus', { id: t.id, action: action }))
+          var payload = { id: t.id, action: action };
+          if (action === 'wait') Object.assign(payload, yes);
+          App.busy(btn, App.api('tasks.setStatus', payload))
             .then(function (res) {
               App.toast('狀態已改為「' + res.status + '」');
               return loadTask(page, t.id);
@@ -248,6 +287,34 @@
       };
     });
 
+    App.$('task-box').querySelectorAll('[data-del-note]').forEach(function (btn) {
+      btn.onclick = function () {
+        App.confirm({ title: '刪除這則備註？', message: '刪除後管理者仍可在「已刪除項目」還原。', okText: '刪除', danger: true }).then(function (yes) {
+          if (!yes) return;
+          App.api('notes.delete', { id: btn.getAttribute('data-del-note') })
+            .then(function () { App.toast('已刪除備註'); return loadTask(page, t.id); })
+            .catch(function (err) { App.toast(err.message); });
+        });
+      };
+    });
+
+    var fu = App.$('btn-followup');
+    if (fu) {
+      fu.onclick = function () {
+        App.formModal({
+          title: '改追蹤日',
+          message: '建議同時添加一則備註，說明這次追蹤的結果。',
+          fields: [{ name: 'followUpDate', label: '下次追蹤日', type: 'date', required: true, value: App.addDays(App.today(), 7), min: App.today() }],
+          okText: '儲存'
+        }).then(function (v) {
+          if (!v) return;
+          App.api('tasks.setFollowUp', { id: t.id, followUpDate: v.followUpDate })
+            .then(function () { App.toast('已改追蹤日'); return loadTask(page, t.id); })
+            .catch(function (err) { App.toast(err.message); });
+        });
+      };
+    }
+
     var form = App.$('note-form');
     if (form) {
       var ta = form.content;
@@ -259,22 +326,47 @@
         e.preventDefault();
         var content = ta.value.trim();
         if (!content) { ta.focus(); return; }
-        App.busy(App.$('note-send'), App.api('notes.add', { taskId: t.id, content: content }), '送出中')
-          .then(function () { App.toast('已送出備註'); return loadTask(page, t.id); })
-          .catch(function (err) { App.toast(err.message); });
+        // 等待外部：負責人在追蹤日當天或之後加備註＝完成追蹤，先選下次追蹤日（SPEC 6.4、D-042）
+        var counts = t.waiting && t.waiting.followUpState && t.permissions.isAssignee;
+        var ask = counts ? App.formModal({
+          title: '下次追蹤日',
+          message: '這則備註會視為「已追蹤」。直接略過會設為 7 天後。',
+          fields: [{ name: 'next', label: '下次追蹤日', type: 'date', required: true, value: App.addDays(App.today(), 7), min: App.today() }],
+          okText: '送出',
+          cancelText: '略過（7 天後）'
+        }).then(function (v) { return { next: v ? v.next : '' }; }) : Promise.resolve({ next: '' });
+        ask.then(function (r) {
+          App.busy(App.$('note-send'), App.api('notes.add', { taskId: t.id, content: content, nextFollowUp: r.next }), '送出中')
+            .then(function (res) {
+              App.toast(res.followUpDate ? '已追蹤，下次追蹤日 ' + App.fmtDate(res.followUpDate) : '已送出備註');
+              return loadTask(page, t.id);
+            })
+            .catch(function (err) { App.toast(err.message); });
+        });
       };
     }
 
     var more = App.$('btn-more');
     if (more) {
       more.onclick = function () {
-        App.sheet('更多', [
-          { key: 'edit', label: '編輯任務', disabled: !t.permissions.canEdit },
-          { key: 'reassign', label: '修改指派', disabled: !t.permissions.canReassign },
-          { key: 'delete', label: '刪除', disabled: true, hint: '第 4 階段開放' }
-        ]).then(function (key) {
+        var perm = t.permissions;
+        var items = [];
+        if (perm.canEdit) items.push({ key: 'edit', label: '編輯任務' });
+        if (perm.canReassign) items.push({ key: 'reassign', label: '修改指派' });
+        if (perm.canDelete) items.push({ key: 'delete', label: '刪除', danger: true });
+        App.sheet('更多', items).then(function (key) {
           if (key === 'edit') App.go('/tasks/' + encodeURIComponent(t.id) + '/edit');
           if (key === 'reassign') App.go('/tasks/' + encodeURIComponent(t.id) + '/assign');
+          if (key === 'delete') {
+            App.confirm({ title: '刪除「' + t.id + ' ' + t.title + '」？', message: '刪除後會從所有清單中隱藏，管理者可以在「已刪除項目」還原。', okText: '刪除', danger: true })
+              .then(function (yes) {
+                if (!yes) return;
+                App.api('tasks.delete', { id: t.id }).then(function () {
+                  App.toast('已刪除 ' + t.id);
+                  App.go(t.projectId ? '/projects/' + encodeURIComponent(t.projectId) : (t.status === '已完成' ? '/history' : '/todos'), true);
+                }).catch(function (err) { App.toast(err.message); });
+              });
+          }
         });
       };
     }

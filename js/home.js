@@ -19,7 +19,9 @@
         '<header class="topbar">' +
         '<div><div class="topbar-date">' + esc(date) + '</div>' +
         '<div class="topbar-greeting">你好，' + esc(p.name) + '</div></div>' +
-        '<a class="avatar" href="#/settings" aria-label="個人設定">' + esc(App.initial(p.name)) + '</a>' +
+        '<div class="topbar-actions">' +
+        '<a class="icon-btn" href="#/search" aria-label="搜尋"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg></a>' +
+        '<a class="avatar" href="#/settings" aria-label="個人設定">' + esc(App.initial(p.name)) + '</a></div>' +
         '</header>' +
         '<main class="content" id="home-box">' + App.loadingHtml + '</main>';
       App.api('home').then(function (data) {
