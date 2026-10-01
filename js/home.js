@@ -135,7 +135,7 @@
         '<div><dt>角色</dt><dd>' + esc(p.role) + '</dd></div>' +
         '</dl>' +
         '<button class="btn btn-danger btn-block" id="btn-logout" type="button">登出</button>' +
-        '<p class="hint center">版本 ' + esc(App.cfg.VERSION) + '（第 1 階段）</p>' +
+        '<p class="hint center">版本 ' + esc(App.cfg.VERSION) + '</p>' +
         '</main>';
       App.$('btn-logout').onclick = App.logout;
     }
