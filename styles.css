@@ -626,3 +626,7 @@ em.req { font-style: normal; color: var(--danger); font-size: 12px; }
 .log-row.open .log-detail { display: grid; grid-template-columns: 1fr 1fr; }
 .log-col { background: #f9fafb; border-radius: 8px; padding: 8px 10px; word-break: break-word; }
 .log-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+
+/* ---------- 第 5 階段：每日摘要 ---------- */
+.digest-row { flex-wrap: wrap; }
+.digest-row .btn-small { margin-left: 0; }

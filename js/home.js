@@ -132,7 +132,8 @@
         '<main class="content">' +
         '<dl class="card profile">' +
         '<div><dt>姓名</dt><dd>' + esc(p.name) + '</dd></div>' +
-        '<div><dt>Gmail</dt><dd>' + esc(p.email) + '</dd></div>' +
+        '<div><dt>Gmail（登入用）</dt><dd>' + esc(p.email) + '</dd></div>' +
+        '<div><dt>每日摘要寄到</dt><dd>' + esc(p.notifyEmail || p.email) + '</dd></div>' +
         '<div><dt>所屬單位</dt><dd>' + esc(units) + '</dd></div>' +
         '<div><dt>角色</dt><dd>' + esc(p.role) + '</dd></div>' +
         '</dl>' +

@@ -23,7 +23,29 @@
         '<a class="list-row" href="#/admin/units"><span class="list-main">單位管理</span><span class="chev">›</span></a>' +
         '<a class="list-row" href="#/admin/logs"><span class="list-main">操作紀錄</span><span class="chev">›</span></a>' +
         '<a class="list-row" href="#/admin/deleted"><span class="list-main">已刪除項目</span><span class="chev">›</span></a>' +
+        '<div class="list-row digest-row"><span class="list-main"><span class="list-title">每日摘要</span>' +
+        '<span class="list-sub" id="digest-status">讀取中…</span></span>' +
+        '<button class="btn btn-small btn-secondary" type="button" id="btn-test-digest">寄一封我的摘要給我</button></div>' +
         '</div></main>';
+      App.api('notify.status').then(function (d) {
+        var el = App.$('digest-status');
+        if (!el) return;
+        el.textContent = d.last
+          ? '上次自動寄送：' + App.fmtDateTime(d.last.at) + '，寄出 ' + d.last.sent + ' 封' + (d.last.failed.length ? '，失敗 ' + d.last.failed.length + ' 封' : '')
+          : '排程已設定：工作日 9:00～9:30 自動寄出（尚未寄過）';
+      }).catch(function () {
+        var el = App.$('digest-status');
+        if (el) el.textContent = '無法讀取寄送狀態';
+      });
+      App.$('btn-test-digest').onclick = function () {
+        var btn = App.$('btn-test-digest');
+        App.busy(btn, App.api('notify.testDigest'), '寄送中…')
+          .then(function (r) {
+            App.alert('已寄出測試摘要', '寄到：' + r.to + '\n' + (r.total ? '內容共 ' + r.total + ' 項。' : '目前沒有任何內容（正式摘要在沒有內容時不會寄出）。') +
+              '\n\n如果沒收到，請檢查垃圾信件匣。寄到公司信箱的話，可能需要請公司郵件管理人員把寄件地址加入白名單。');
+          })
+          .catch(function (err) { App.toast(err.message); });
+      };
     }
   });
 
@@ -77,7 +99,7 @@
       // 編輯時需要該成員資料；單位清單也重新取得，確保是最新的
       Promise.all([isNew ? null : App.api('members.list'), App.api('units.list')]).then(function (res) {
         App.state.units = res[1].units;
-        var member = isNew ? { name: '', email: '', units: [], role: '一般成員', active: true }
+        var member = isNew ? { name: '', email: '', notifyEmail: '', units: [], role: '一般成員', active: true }
           : res[0].members.filter(function (m) { return m.id === params.id; })[0];
         var box = App.$('member-form-box');
         if (!box) return;
@@ -100,6 +122,9 @@
       '<label class="field"><span class="field-label">Gmail <em>必填</em></span>' +
       '<input class="input" name="email" type="email" inputmode="email" autocapitalize="off" value="' + esc(member.email) + '" autocomplete="off">' +
       '<span class="field-hint">同仁用這個 Google 帳號登入系統</span></label>' +
+      '<label class="field"><span class="field-label">通知信箱 <span class="muted small">選填</span></span>' +
+      '<input class="input" name="notifyEmail" type="email" inputmode="email" autocapitalize="off" value="' + esc(member.notifyEmail || '') + '" autocomplete="off">' +
+      '<span class="field-hint">每日摘要寄到這裡（通常是公司信箱）；沒填就寄到上面的 Gmail</span></label>' +
       '<div class="field"><span class="field-label">所屬單位 <span class="muted small">可多選</span></span>' +
       '<div class="chips">' + selectable.map(function (u) {
         var on = member.units.indexOf(u.id) !== -1;
@@ -161,7 +186,7 @@
         return;
       }
       err.hidden = true;
-      var payload = { name: name, email: email, units: state.units, role: state.role };
+      var payload = { name: name, email: email, notifyEmail: form.notifyEmail.value.trim(), units: state.units, role: state.role };
       if (!isNew) payload.id = member.id;
       App.busy(App.$('member-save'), App.api(isNew ? 'members.create' : 'members.update', payload), '儲存中…')
         .then(function () {

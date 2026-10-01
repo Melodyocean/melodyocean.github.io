@@ -157,14 +157,19 @@
         '<h2>' + App.esc(opts.title) + '</h2>' +
         (opts.message ? '<p class="modal-text">' + App.esc(opts.message) + '</p>' : '') +
         '<div class="modal-actions">' +
-        '<button class="btn btn-secondary" data-act="cancel" type="button">取消</button>' +
+        (opts.noCancel ? '' : '<button class="btn btn-secondary" data-act="cancel" type="button">取消</button>') +
         '<button class="btn ' + (opts.danger ? 'btn-danger-solid' : 'btn-primary') + '" data-act="ok" type="button">' + App.esc(opts.okText || '確定') + '</button>' +
         '</div>'
       );
       root.querySelector('[data-act="ok"]').onclick = function () { closeModal(); resolve(true); };
-      root.querySelector('[data-act="cancel"]').onclick = function () { closeModal(); resolve(false); };
+      if (!opts.noCancel) root.querySelector('[data-act="cancel"]').onclick = function () { closeModal(); resolve(false); };
       root.querySelector('.modal-backdrop').onclick = function () { closeModal(); resolve(false); };
     });
+  };
+
+  /** 只有「知道了」的訊息框。 */
+  App.alert = function (title, message) {
+    return App.confirm({ title: title, message: message, okText: '知道了', noCancel: true });
   };
 
   /** 輸入框：回傳 Promise<string|null>（取消為 null）。 */
