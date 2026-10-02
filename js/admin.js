@@ -183,7 +183,10 @@
         var inactive = data.members.filter(function (m) { return !m.active; });
         var box = App.$('member-list');
         if (!box) return;
+        var problems = data.problems || [];
         box.innerHTML =
+          (problems.length ? '<div class="alert member-problems"><strong>名單有 ' + problems.length + ' 個地方需要修正</strong>（請到試算表「成員」頁修改）<ul>' +
+            problems.map(function (p) { return '<li>第 ' + p.row + ' 列「' + esc(p.name) + '」：' + esc(p.message) + '</li>'; }).join('') + '</ul></div>' : '') +
           '<h3 class="section-title">啟用中（' + active.length + '）</h3>' + memberRows(active) +
           (inactive.length ? '<h3 class="section-title">已停用（' + inactive.length + '）</h3>' + memberRows(inactive) : '');
       }).catch(function (err) {

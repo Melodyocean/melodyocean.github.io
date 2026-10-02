@@ -844,3 +844,6 @@ em.req { font-style: normal; color: var(--danger); font-size: 12px; }
   .desktop .pane-open .home-cols { display: grid; }
   .desktop .pane-open .stat-grid { grid-template-columns: repeat(6, 1fr); }
 }
+
+/* ---------- 第 7 階段 ---------- */
+.member-problems ul { margin: 6px 0 0; padding-left: 20px; }
