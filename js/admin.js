@@ -160,6 +160,8 @@
       '<span class="task-title"><span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + '</span>' +
       '<span class="task-sub">' + App.statusBadge(t.status) +
       (t.stalled ? ' <span class="tag tag-stalled">停滯 ' + t.idleDays + ' 天</span>' : '') +
+      (t.assigneeDisabled ? ' <span class="tag tag-alert">負責人已停用</span>' : '') +
+      (t.publisherDisabled ? ' <span class="tag tag-alert">發布者已停用</span>' : '') +
       (unitWide ? ' <span class="tag tag-paused">單位全體</span>' : '') +
       ' <span>' + esc(t.unitName) + ' · ' + esc(who) + ' · ' + esc(t.projectId ? t.projectName : '公共待辦') + '</span></span>' +
       (t.waiting ? '<span class="task-sub waiting-line">等' + esc(t.waiting.waitingFor) + '：' + esc(t.waiting.note) + ' · 下次追蹤 ' + esc(App.fmtDate(t.waiting.followUpDate)) + '</span>' : '') +
@@ -326,26 +328,94 @@
     var toggle = App.$('member-toggle');
     if (toggle) {
       toggle.onclick = function () {
-        var activate = !member.active;
-        var ask = activate
-          ? Promise.resolve(true)
-          : App.confirm({
-            title: '停用「' + member.name + '」？',
-            message: '停用後他就無法登入系統，過去的紀錄會保留。之後可以重新啟用。',
-            okText: '停用',
-            danger: true
-          });
-        ask.then(function (yes) {
-          if (!yes) return;
-          App.busy(toggle, App.api('members.setActive', { id: member.id, active: activate }))
-            .then(function () {
-              App.toast(activate ? '已重新啟用' : '已停用');
-              App.go('/admin/members', true);
-            })
-            .catch(function (e2) { App.toast(e2.message); });
-        });
+        // 停用前先處理他身上的任務（D-056）
+        if (member.active) { App.go('/admin/members/' + encodeURIComponent(member.id) + '/deactivate'); return; }
+        App.busy(toggle, App.api('members.setActive', { id: member.id, active: true }))
+          .then(function () {
+            App.toast('已重新啟用');
+            App.go('/admin/members', true);
+          })
+          .catch(function (e2) { App.toast(e2.message); });
       };
     }
+  }
+
+  // ---------- 停用成員：先改派他身上的任務（SPEC 4.2、D-056）----------
+
+  App.route('/admin/members/:id/deactivate', {
+    tab: 'overview',
+    admin: true,
+    noFab: true,
+    render: function (page, params) {
+      page.innerHTML = App.topbar({ title: '停用成員', back: '/admin/members/' + encodeURIComponent(params.id), backLabel: '取消' }) +
+        '<main class="content" id="deact-box">' + App.loadingHtml + '</main>';
+      loadDeactivate(params.id);
+    }
+  });
+
+  function loadDeactivate(id) {
+    Promise.all([App.api('members.openItems', { id: id }), App.api('members.list'), App.api('units.list')]).then(function (res) {
+      var box = App.$('deact-box');
+      if (!box) return;
+      App.state.units = res[2].units;
+      var d = res[0];
+      var members = res[1].members.filter(function (m) { return m.id !== id; });
+      var row = function (t, kind) {
+        return '<div class="deact-row" data-id="' + esc(t.id) + '">' +
+          '<div class="deact-main"><div class="task-title"><span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + '</div>' +
+          '<div class="task-sub">' + App.statusBadge(t.status) + ' <span>' + esc(t.projectId ? t.projectName : '公共待辦') + ' · ' + esc(t.unitName) + ' · ' +
+          esc(t.assigneeNames.length ? t.assigneeNames.join('、') : '單位全體') + '</span></div></div>' +
+          (kind === 'assignee'
+            ? '<button class="btn btn-small btn-secondary" type="button" data-reassign="' + esc(t.id) + '">改派</button>'
+            : '<a class="btn btn-small btn-secondary" href="#/tasks/' + encodeURIComponent(t.id) + '">前往處理</a>') +
+          '<div class="deact-picker" data-picker="' + esc(t.id) + '" hidden></div></div>';
+      };
+      var total = d.assigneeTasks.length + d.publisherTasks.length;
+      box.innerHTML =
+        '<h1 class="task-h1">停用「' + esc(d.member.name) + '」</h1>' +
+        '<p class="muted">停用後他就無法登入，過去的紀錄會保留。' +
+        (total ? '停用前請先處理下列任務；也可以略過直接停用，略過的項目會在管理總覽標示。' : '他身上沒有需要改派的未完成任務。') + '</p>' +
+        (d.assigneeTasks.length ? '<h3 class="section-title">他是負責人的任務（' + d.assigneeTasks.length + '）</h3>' +
+          '<div class="card list">' + d.assigneeTasks.map(function (t) { return row(t, 'assignee'); }).join('') + '</div>' : '') +
+        (d.publisherTasks.length ? '<h3 class="section-title">他發布、等待簽核的任務（' + d.publisherTasks.length + '）</h3>' +
+          '<p class="hint">停用後這些任務沒有發布者可以簽核；管理者可以進入任務直接「簽核完成」或「退回進行中」。</p>' +
+          '<div class="card list">' + d.publisherTasks.map(function (t) { return row(t, 'publisher'); }).join('') + '</div>' : '') +
+        '<div class="card"><button class="btn btn-danger-solid btn-block" type="button" id="deact-confirm">' +
+        (total ? '略過其餘項目，停用這位成員' : '停用這位成員') + '</button></div>';
+
+      box.querySelectorAll('[data-reassign]').forEach(function (btn) {
+        btn.onclick = function () {
+          var tid = btn.getAttribute('data-reassign');
+          var t = d.assigneeTasks.filter(function (x) { return x.id === tid; })[0];
+          var holder = box.querySelector('[data-picker="' + tid + '"]');
+          if (!holder.hidden) { holder.hidden = true; return; }
+          holder.hidden = false;
+          holder.innerHTML = '<div data-role="picker"></div><button class="btn btn-primary btn-block" type="button" data-role="save">儲存改派</button>';
+          var initial = t.assigneeIds.filter(function (x) { return x !== id; }); // 預設拿掉即將停用的人
+          var picker = App.assignPicker(holder.querySelector('[data-role="picker"]'), members, { unitId: t.unitId, assignees: initial }, function () {});
+          holder.querySelector('[data-role="save"]').onclick = function (e) {
+            var a = picker.get();
+            App.busy(e.target, App.api('tasks.reassign', { id: tid, unitId: a.unitId, assignees: a.assignees }), '儲存中…')
+              .then(function () { App.toast(tid + ' 已改派'); loadDeactivate(id); })
+              .catch(function (err) { App.toast(err.message); });
+          };
+        };
+      });
+
+      App.$('deact-confirm').onclick = function () {
+        var btn = App.$('deact-confirm');
+        App.confirm({ title: '停用「' + d.member.name + '」？', message: '停用後他就無法登入系統。之後可以重新啟用。', okText: '停用', danger: true })
+          .then(function (yes) {
+            if (!yes) return;
+            App.busy(btn, App.api('members.setActive', { id: id, active: false }), '停用中…')
+              .then(function () { App.toast('已停用'); App.go('/admin/members', true); })
+              .catch(function (err) { App.toast(err.message); });
+          });
+      };
+    }).catch(function (err) {
+      var box = App.$('deact-box');
+      if (box) box.innerHTML = App.errorHtml(err);
+    });
   }
 
   // ---------- 單位管理 ----------
