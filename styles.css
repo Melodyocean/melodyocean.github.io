@@ -630,3 +630,217 @@ em.req { font-style: normal; color: var(--danger); font-size: 12px; }
 /* ---------- 第 5 階段：每日摘要 ---------- */
 .digest-row { flex-wrap: wrap; }
 .digest-row .btn-small { margin-left: 0; }
+
+/* ---------- 第 6 階段：管理總覽 ---------- */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat-grid .stat { border: none; font: inherit; text-align: left; cursor: pointer; min-height: 72px; }
+.stat-grid .stat.selected { outline: 3px solid #111827; outline-offset: 2px; }
+.stat-open { background: #374151; }
+.stat-waiting { background: var(--c-waiting); }
+.stat-follow { background: #5b21b6; }
+.stat-stalled { background: #6b7280; }
+
+.unit-table { padding: 4px 0; }
+.ut-row {
+  display: grid;
+  grid-template-columns: 1.6fr repeat(4, 1fr);
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+.ut-row > span:first-child { text-align: left; }
+.ut-row:last-child { border-bottom: none; }
+.ut-row.ut-head { font-size: 13px; color: var(--muted); cursor: default; min-height: 36px; }
+.ut-row.selected { background: #eff6ff; }
+.num-red { color: var(--c-overdue); font-weight: 700; }
+.num-purple { color: var(--c-waiting); font-weight: 700; }
+.num-gray { color: #374151; font-weight: 700; }
+
+.filter-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; }
+.filter-bar .input { flex: 1; min-width: 120px; }
+.filter-bar .link-btn { margin-left: 0; }
+.tag-stalled { background: #374151; color: #fff; }
+.waiting-line { color: var(--c-waiting); }
+
+/* ---------- 第 6 階段：電腦版三欄（SPEC 5.6；1024 像素以上）---------- */
+
+/* 手機版不顯示電腦版的元件 */
+.sidebar, .desk-header, .pane, .d-cell, .d-only { display: none; }
+
+@media (min-width: 1024px) {
+  body.desktop { background: #eef0f3; }
+  .desktop #view-app {
+    display: grid;
+    grid-template-columns: 232px minmax(0, 1fr);
+    min-height: 100vh;
+  }
+  .desktop #view-app.pane-open { grid-template-columns: 232px minmax(0, 1fr) 440px; }
+  .desktop .tabbar, .desktop .fab { display: none !important; }
+
+  /* 左欄選單 */
+  .desktop .sidebar {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 16px 12px;
+  }
+  .side-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; padding: 4px 8px 16px; }
+  .side-brand img { width: 32px; height: 32px; border-radius: 8px; }
+  .side-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+  .side-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 0 10px;
+    border-radius: 10px;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .side-item svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .side-item:hover { background: #f3f4f6; }
+  .side-item.active { background: #eff6ff; color: var(--primary); font-weight: 700; }
+  .side-sub { display: flex; flex-direction: column; margin: 2px 0 6px 32px; }
+  .side-subitem {
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .side-subitem:hover { background: #f3f4f6; color: var(--text); }
+  .side-subitem.active { color: var(--primary); font-weight: 700; }
+  .side-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .side-user-text { display: flex; flex-direction: column; min-width: 0; }
+  .side-user-text small { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* 中欄 */
+  .main-col { min-width: 0; container-type: inline-size; }
+  .desktop .desk-header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 15;
+  }
+  .desk-search { flex: 1; max-width: 560px; }
+  .desktop .topbar { position: static; padding: 16px 24px 12px; }
+  .desktop .topbar .topbar-actions { display: none; }
+  .desktop .content { max-width: 1100px; padding: 16px 24px 40px; margin: 0; }
+  .desktop .content.has-composer, .desktop .content.has-bottom-bar { padding-bottom: 24px; }
+  .desktop .composer, .desktop .bottom-bar {
+    position: sticky;
+    bottom: 0;
+    left: auto;
+    right: auto;
+    margin: 16px -24px 0;
+    padding: 12px 24px;
+  }
+  .desktop .composing .composer { bottom: 0; padding-bottom: 12px; }
+
+  /* 首頁：左右兩欄；右欄打開任務時改一欄（D-051） */
+  .desktop .home-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .desktop .pane-open .home-cols { display: block; }
+  .stat-grid { grid-template-columns: repeat(3, 1fr); }
+  .desktop .stat-grid { grid-template-columns: repeat(6, 1fr); }
+  .desktop .pane-open .stat-grid { grid-template-columns: repeat(3, 1fr); }
+
+  /* 任務清單以表格呈現 */
+  .desktop .task-list .m-cell { display: none; }
+  .desktop .task-list .d-cell { display: block; }
+  .desktop .task-list .task-row, .desktop .task-thead {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) 84px 120px 132px 80px 44px;
+    gap: 10px;
+    align-items: center;
+    min-height: 48px;
+    padding: 8px 12px;
+    margin: 0 -16px;
+  }
+  .desktop .task-thead { min-height: 36px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  .desktop .task-list .task-row { border-left: 3px solid transparent; }
+  .desktop .task-row:hover { background: #f9fafb; }
+  .desktop .task-row.selected { background: #eff6ff; border-left-color: var(--primary); }
+  .c-id { color: var(--muted); font-size: 13px; }
+  .c-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+  .c-title small { display: block; font-weight: 400; }
+  .c-unit, .c-who { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .c-notes { font-size: 13px; color: var(--muted); text-align: center; }
+  @container (max-width: 760px) {
+    .task-list .task-row, .task-thead { grid-template-columns: 60px minmax(0, 1fr) 120px 76px !important; }
+    .c-unit, .c-who, .c-notes { display: none !important; }
+  }
+  .desktop .ov-row.selected, .desktop .cards-only .task-row.selected { background: #eff6ff; }
+
+  /* 右欄：任務詳情 */
+  .desktop .pane {
+    display: none;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    flex-direction: column;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+  }
+  .desktop .pane-open .pane { display: flex; }
+  .pane-head {
+    display: grid;
+    grid-template-columns: 72px 1fr auto;
+    align-items: center;
+    min-height: 56px;
+    padding: 0 8px 0 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .pane-title { text-align: center; font-weight: 700; }
+  .pane-tools { display: flex; align-items: center; }
+  .pane-tools .btn-more { min-width: 44px; text-align: center; }
+  .pane-btn { min-height: 44px; min-width: 44px; border: none; background: none; font: inherit; color: var(--primary); cursor: pointer; }
+  .desktop .pane .pane-body { flex: 1; overflow-y: auto; padding: 16px; margin: 0; max-width: none; }
+  .desktop .pane .composer { margin: 16px -16px -16px; padding: 12px 16px; }
+}
+
+/* 較窄的筆電（1024～1279）：右欄改為從右側滑出、蓋在中欄上，避免中欄太擠 */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .desktop #view-app.pane-open { grid-template-columns: 232px minmax(0, 1fr); }
+  .desktop .pane-open .pane {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 440px;
+    z-index: 30;
+    box-shadow: -8px 0 24px rgba(17, 24, 39, 0.15);
+  }
+  .desktop .pane-open .home-cols { display: grid; }
+  .desktop .pane-open .stat-grid { grid-template-columns: repeat(6, 1fr); }
+}

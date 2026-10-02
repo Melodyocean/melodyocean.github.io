@@ -53,7 +53,16 @@
 
     <!-- 登入後的主畫面：內容依網址切換，底部固定分頁列 -->
     <section class="view" id="view-app" hidden>
-      <div id="page"></div>
+      <!-- 電腦版（寬度 1024 以上）：左欄選單＋中欄內容＋右欄任務詳情（SPEC 5.6） -->
+      <aside class="sidebar" id="sidebar" aria-label="主選單"></aside>
+      <div class="main-col">
+        <header class="desk-header" id="desk-header"></header>
+        <div id="page"></div>
+      </div>
+      <aside class="pane" id="pane" aria-label="任務詳情">
+        <header class="pane-head" id="pane-head"></header>
+        <div class="pane-body content" id="pane-body"></div>
+      </aside>
       <button class="fab" id="fab" type="button" aria-label="新增" hidden>＋</button>
       <nav class="tabbar" id="tabbar" aria-label="主要分頁"></nav>
     </section>
@@ -67,6 +76,7 @@
   <script src="js/auth.js"></script>
   <script src="js/home.js"></script>
   <script src="js/admin.js"></script>
+  <script src="js/task-view.js"></script>
   <script src="js/tasks.js"></script>
   <script src="js/projects.js"></script>
   <script src="js/search.js"></script>

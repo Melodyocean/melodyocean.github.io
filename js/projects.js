@@ -97,7 +97,7 @@
       var list = open.filter(function (t) { return t.status === status; });
       if (!list.length) return '';
       return '<h3 class="section-title">' + App.statusBadge(status) + ' ' + list.length + ' 項</h3>' +
-        '<div class="card list">' + list.map(function (t) { return App.taskRow(t, { inProject: true }); }).join('') + '</div>';
+        App.taskList(list, { inProject: true });
     }).join('');
 
     App.$('project-box').innerHTML =
@@ -293,7 +293,7 @@
         var done = data.project.tasks.filter(function (t) { return t.status === '已完成'; })
           .sort(function (a, b) { return String(b.completedAt).localeCompare(String(a.completedAt)); });
         return '<p class="muted">' + esc(data.project.id) + ' ' + esc(data.project.name) + '</p>' +
-          (done.length ? '<div class="card list">' + done.map(function (t) { return App.taskRow(t, { inProject: true }); }).join('') + '</div>'
+          (done.length ? App.taskList(done, { inProject: true })
             : '<div class="card empty"><p class="muted">還沒有已完成的子任務。</p></div>');
       });
     }

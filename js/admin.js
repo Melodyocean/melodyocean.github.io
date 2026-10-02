@@ -14,9 +14,7 @@
     admin: true,
     render: function (page) {
       page.innerHTML = App.topbar({ title: '總覽' }) +
-        '<main class="content">' +
-        '<div class="card empty"><h2>管理總覽：第 6 階段開放</h2>' +
-        '<p class="muted">之後這裡會顯示全公司的未完成、逾期、停滯任務與各單位狀況。</p></div>' +
+        '<main class="content"><div id="overview-box">' + App.loadingHtml + '</div>' +
         '<h3 class="section-title">管理工具</h3>' +
         '<div class="card list">' +
         '<a class="list-row" href="#/admin/members"><span class="list-main">成員管理</span><span class="chev">›</span></a>' +
@@ -27,6 +25,13 @@
         '<span class="list-sub" id="digest-status">讀取中…</span></span>' +
         '<button class="btn btn-small btn-secondary" type="button" id="btn-test-digest">寄一封我的摘要給我</button></div>' +
         '</div></main>';
+      App.api('overview').then(function (data) {
+        var box = App.$('overview-box');
+        if (box) App.renderOverview(box, data);
+      }).catch(function (err) {
+        var box = App.$('overview-box');
+        if (box) box.innerHTML = App.errorHtml(err);
+      });
       App.api('notify.status').then(function (d) {
         var el = App.$('digest-status');
         if (!el) return;
@@ -48,6 +53,121 @@
       };
     }
   });
+
+  // ---------- 管理總覽內容（SPEC 6.10、D-049）----------
+
+  var BOXES = [
+    { key: 'all', label: '全公司未完成', count: 'open', cls: 'stat-open' },
+    { key: 'overdue', label: '已逾期（內部）', count: 'overdue', cls: 'stat-overdue' },
+    { key: 'waiting', label: '等待外部', count: 'waiting', cls: 'stat-waiting' },
+    { key: 'followUpOverdue', label: '追蹤逾期', count: 'followUpOverdue', cls: 'stat-follow' },
+    { key: 'review', label: '待簽核', count: 'review', cls: 'stat-review' },
+    { key: 'stalled', label: '停滯', count: 'stalled', cls: 'stat-stalled' }
+  ];
+
+  var BOX_MATCH = {
+    all: function () { return true; },
+    overdue: function (t) { return t.overdueDays > 0; },
+    waiting: function (t) { return t.status === '等待外部'; },
+    followUpOverdue: function (t) { return t.followUpOverdue; },
+    review: function (t) { return t.status === '待簽核'; },
+    stalled: function (t) { return t.stalled; }
+  };
+
+  App.renderOverview = function (box, d) {
+    var f = App.state.overviewFilter || (App.state.overviewFilter = { box: 'all', unitId: '', status: '', assigneeId: '' });
+    var memberById = {};
+    d.members.forEach(function (m) { memberById[m.id] = m; });
+
+    /** 依負責人篩選：直接指定給此人，或此人所屬單位中未指定個人的任務（D-049） */
+    function assigneeMatch(t) {
+      if (!f.assigneeId) return { ok: true };
+      if (t.assigneeIds.indexOf(f.assigneeId) !== -1) return { ok: true };
+      var m = memberById[f.assigneeId];
+      if (m && !t.assigneeIds.length && m.units.indexOf(t.unitId) !== -1) return { ok: true, unitWide: true };
+      return { ok: false };
+    }
+
+    function draw() {
+      var list = d.tasks.filter(function (t) {
+        return BOX_MATCH[f.box](t) && (!f.unitId || t.unitId === f.unitId) && (!f.status || t.status === f.status) && assigneeMatch(t).ok;
+      });
+      var filtered = f.box !== 'all' || f.unitId || f.status || f.assigneeId;
+      box.innerHTML =
+        '<div class="stat-grid">' + BOXES.map(function (b) {
+          return '<button type="button" class="stat ' + b.cls + (f.box === b.key ? ' selected' : '') + '" data-box="' + b.key + '">' +
+            '<span class="stat-num">' + d.counts[b.count] + '</span><span class="stat-label">' + b.label + '</span></button>';
+        }).join('') + '</div>' +
+
+        '<h3 class="section-title">各單位狀況</h3>' +
+        '<div class="card unit-table"><div class="ut-row ut-head"><span>單位</span><span>未完成</span><span>逾期</span><span>等待外部</span><span>停滯</span></div>' +
+        d.units.map(function (u) {
+          return '<button type="button" class="ut-row' + (f.unitId === u.id ? ' selected' : '') + '" data-unit-filter="' + esc(u.id) + '">' +
+            '<span>' + esc(u.name) + (u.active ? '' : '<small class="muted">（已停用）</small>') + '</span>' +
+            '<span>' + u.open + '</span><span class="' + (u.overdue ? 'num-red' : '') + '">' + u.overdue + '</span>' +
+            '<span class="' + (u.waiting ? 'num-purple' : '') + '">' + u.waiting + '</span><span class="' + (u.stalled ? 'num-gray' : '') + '">' + u.stalled + '</span></button>';
+        }).join('') + '</div>' +
+
+        '<h3 class="section-title">所有未完成任務</h3>' +
+        '<div class="card filter-bar">' +
+        '<select class="input" data-f="unitId"><option value="">全部單位</option>' + d.units.map(function (u) {
+          return '<option value="' + esc(u.id) + '"' + (f.unitId === u.id ? ' selected' : '') + '>' + esc(u.name) + '</option>';
+        }).join('') + '</select>' +
+        '<select class="input" data-f="status"><option value="">全部狀態</option>' + ['未開始', '進行中', '等待外部', '待簽核'].map(function (st) {
+          return '<option' + (f.status === st ? ' selected' : '') + '>' + st + '</option>';
+        }).join('') + '</select>' +
+        '<select class="input" data-f="assigneeId"><option value="">全部負責人</option>' + d.members.map(function (m) {
+          return '<option value="' + esc(m.id) + '"' + (f.assigneeId === m.id ? ' selected' : '') + '>' + esc(m.name) + '</option>';
+        }).join('') + '</select>' +
+        (filtered ? '<button type="button" class="link-btn" data-role="clear">清除篩選</button>' : '') +
+        '</div>' +
+        '<p class="hint">共 ' + list.length + ' 項 · 排序：逾期 → 追蹤逾期 → 停滯 → 期限</p>' +
+        (list.length ? '<div class="card list">' + list.map(function (t) { return overviewRow(t, assigneeMatch(t).unitWide); }).join('') + '</div>'
+          : '<div class="card empty"><p class="muted">沒有符合的任務。</p></div>') +
+
+        (d.paused.length ? '<h3 class="section-title">暫停中專案（' + d.paused.length + '）</h3><div class="card list">' + d.paused.map(function (p) {
+          return '<a class="list-row" href="#/projects/' + encodeURIComponent(p.id) + '"><span class="list-main">' +
+            '<span class="list-title">' + esc(p.id) + ' ' + esc(p.name) + ' <span class="tag tag-paused">暫停中</span></span>' +
+            '<span class="list-sub">' + esc(p.pauseReason) + ' · 預計 ' + esc(App.fmtDate(p.resumeDate)) + ' 恢復 · 未完成 ' + p.openCount + ' 項</span></span>' +
+            '<span class="chev">›</span></a>';
+        }).join('') + '</div>' : '');
+
+      box.querySelectorAll('[data-box]').forEach(function (b) {
+        b.onclick = function () { f.box = b.getAttribute('data-box'); draw(); };
+      });
+      box.querySelectorAll('[data-unit-filter]').forEach(function (b) {
+        b.onclick = function () {
+          var id = b.getAttribute('data-unit-filter');
+          f.unitId = f.unitId === id ? '' : id;
+          draw();
+        };
+      });
+      box.querySelectorAll('[data-f]').forEach(function (sel) {
+        sel.onchange = function () { f[sel.getAttribute('data-f')] = sel.value; draw(); };
+      });
+      var clear = box.querySelector('[data-role="clear"]');
+      if (clear) clear.onclick = function () { f.box = 'all'; f.unitId = ''; f.status = ''; f.assigneeId = ''; draw(); };
+      if (App.markSelected) App.markSelected();
+    }
+    draw();
+  };
+
+  function overviewRow(t, unitWide) {
+    var right = t.overdueDays > 0 ? '<span class="due overdue">逾期 ' + t.overdueDays + ' 天</span>' : App.dueHtml(t);
+    var who = t.assigneeNames.length ? t.assigneeNames.join('、') : '單位全體';
+    return '<a class="task-row ov-row" data-task="' + esc(t.id) + '" href="#/tasks/' + encodeURIComponent(t.id) + '">' +
+      '<span class="task-main">' +
+      '<span class="task-title"><span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + '</span>' +
+      '<span class="task-sub">' + App.statusBadge(t.status) +
+      (t.stalled ? ' <span class="tag tag-stalled">停滯 ' + t.idleDays + ' 天</span>' : '') +
+      (unitWide ? ' <span class="tag tag-paused">單位全體</span>' : '') +
+      ' <span>' + esc(t.unitName) + ' · ' + esc(who) + ' · ' + esc(t.projectId ? t.projectName : '公共待辦') + '</span></span>' +
+      (t.waiting ? '<span class="task-sub waiting-line">等' + esc(t.waiting.waitingFor) + '：' + esc(t.waiting.note) + ' · 下次追蹤 ' + esc(App.fmtDate(t.waiting.followUpDate)) + '</span>' : '') +
+      '<span class="task-sub small">最後更新 ' + esc(App.fmtDate(t.lastActivityAt)) + '</span>' +
+      '</span>' +
+      '<span class="task-side">' + right + '</span>' +
+      '</a>';
+  }
 
   // ---------- 成員清單 ----------
 

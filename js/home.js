@@ -51,7 +51,7 @@
       (needCount > 3 ? '<a class="section-link" href="#/mine/needs">全部 ' + needCount + ' 項 ›</a>' : '') + '</div>';
     var reminders = d.resumeReminders.slice(0, 3).map(reminderCard).join('');
     var rows = d.needs.slice(0, Math.max(0, 3 - Math.min(3, d.resumeReminders.length))).map(function (t) { return App.taskRow(t); }).join('');
-    needs += reminders + (rows ? '<div class="card list">' + rows + '</div>' : '') +
+    needs += reminders + (rows ? '<div class="card list cards-only">' + rows + '</div>' : '') +
       (!reminders && !rows ? '<div class="card empty small-empty"><p class="muted">目前沒有需要你處理的事項 👍</p></div>' : '');
 
     var projects = '<div class="section-head"><h3 class="section-title">我參與的專案</h3>' +
@@ -109,7 +109,7 @@
         if (!box) return;
         var list = d[params.kind];
         var reminders = params.kind === 'needs' ? d.resumeReminders.map(reminderCard).join('') : '';
-        box.innerHTML = reminders + (list.length ? '<div class="card list">' + list.map(function (t) { return App.taskRow(t); }).join('') + '</div>'
+        box.innerHTML = reminders + (list.length ? App.taskList(list)
           : (reminders ? '' : '<div class="card empty"><p class="muted">' + esc(def.empty) + '</p></div>'));
         bindHome(box, d);
       }).catch(function (err) {

@@ -297,9 +297,33 @@
     else location.hash = hash;
   };
 
-  App.render = function () {
-    if (!App.state.profile) return;
-    var path = location.hash.replace(/^#/, '').split('?')[0] || '/home';
+  /** 網址 # 後面的路徑與參數，例如 #/todos?task=T-001 */
+  App.location = function () {
+    var raw = location.hash.replace(/^#/, '');
+    var i = raw.indexOf('?');
+    var params = {};
+    if (i !== -1) {
+      raw.slice(i + 1).split('&').forEach(function (kv) {
+        var p = kv.split('=');
+        if (p[0]) params[decodeURIComponent(p[0])] = decodeURIComponent(p[1] || '');
+      });
+    }
+    return { path: (i === -1 ? raw : raw.slice(0, i)) || '/home', query: params };
+  };
+
+  // ---------- 電腦版判斷（SPEC 5.6：寬度 1024 像素以上）----------
+
+  var desktopQuery = window.matchMedia('(min-width: 1024px)');
+  App.isDesktop = function () { return desktopQuery.matches; };
+  var onDesktopChange = function () {
+    document.body.classList.toggle('desktop', App.isDesktop());
+    if (App.state.profile) App.render(true);
+  };
+  if (desktopQuery.addEventListener) desktopQuery.addEventListener('change', onDesktopChange);
+  else desktopQuery.addListener(onDesktopChange);
+  document.body.classList.toggle('desktop', App.isDesktop());
+
+  function matchRoute(path) {
     var match = null;
     App.routes.some(function (r) {
       var m = path.match(r.regex);
@@ -309,19 +333,124 @@
       match = { route: r, params: params };
       return true;
     });
+    return match;
+  }
+
+  var lastMain = null; // 上次在中欄顯示的路徑（只換右欄時不重畫中欄）
+
+  App.render = function (force) {
+    if (!App.state.profile) return;
+    var loc = App.location();
+    var desktop = App.isDesktop();
+
+    // 電腦版：從清單點任務，改成「中欄不動、右欄顯示詳情」
+    var taskPath = loc.path.match(/^\/tasks\/([^/]+)(?:\/(edit|assign))?$/);
+    if (desktop && taskPath && lastMain && lastMain.indexOf('/tasks/') !== 0) {
+      App.go(lastMain + '?task=' + encodeURIComponent(decodeURIComponent(taskPath[1])) + (taskPath[2] ? '&mode=' + taskPath[2] : ''), true);
+      return;
+    }
+
+    var match = matchRoute(loc.path);
     if (!match || (match.route.opts.admin && !App.state.profile.isAdmin)) {
       App.go('/home', true);
       return;
     }
-    // 底部分頁列在所有頁面都固定顯示（SPEC 5.1）；詳情與表單頁不顯示右下角「＋」
-    renderTabbar(match.route.opts.tab);
-    App.$('fab').hidden = !!match.route.opts.noFab;
-    App.$('view-app').classList.remove('composing');
-    var page = App.$('page');
-    page.innerHTML = '';
-    window.scrollTo(0, 0);
-    match.route.opts.render(page, match.params);
+
+    var mainChanged = force === true || loc.path !== lastMain;
+    if (mainChanged) {
+      lastMain = loc.path;
+      // 底部分頁列在所有頁面都固定顯示（SPEC 5.1）；詳情與表單頁不顯示右下角「＋」
+      renderTabbar(match.route.opts.tab);
+      App.$('fab').hidden = !!match.route.opts.noFab;
+      App.$('view-app').classList.remove('composing');
+      App.renderDesktopChrome(match.route.opts.tab);
+      var page = App.$('page');
+      page.innerHTML = '';
+      window.scrollTo(0, 0);
+      match.route.opts.render(page, match.params, loc.query);
+    }
+    App.updatePane(desktop ? loc.query.task : null, loc.query.mode);
   };
+
+  /** 只重畫中欄（例如右欄改了任務狀態，中欄清單要跟著更新）。 */
+  App.refreshMain = function () {
+    var match = matchRoute(App.location().path);
+    if (!match) return;
+    var page = App.$('page');
+    var y = window.scrollY;
+    match.route.opts.render(page, match.params, App.location().query);
+    window.scrollTo(0, y);
+  };
+
+  // ---------- 電腦版右欄：任務詳情（不換頁）----------
+
+  var paneState = { id: null, mode: null };
+
+  App.updatePane = function (id, mode) {
+    var view = App.$('view-app');
+    mode = mode || 'detail';
+    if (!id) {
+      paneState = { id: null, mode: null };
+      view.classList.remove('pane-open');
+      App.$('pane-body').innerHTML = '';
+      App.markSelected();
+      return;
+    }
+    view.classList.add('pane-open');
+    if (paneState.id === id && paneState.mode === mode) { App.markSelected(); return; }
+    paneState = { id: id, mode: mode };
+    App.markSelected();
+    var base = App.location().path;
+    var head = App.$('pane-head');
+    var body = App.$('pane-body');
+    body.scrollTop = 0;
+    var host = {
+      el: body,
+      header: function (opts) {
+        head.innerHTML =
+          (opts.cancel ? '<button class="pane-btn" type="button" data-pane="back">‹ 取消</button>' : '<span></span>') +
+          '<div class="pane-title">' + App.esc(opts.title) + '</div>' +
+          '<div class="pane-tools">' + (opts.more ? '<button class="btn-more" type="button" aria-label="更多">⋯</button>' : '') +
+          '<button class="pane-btn" type="button" data-pane="close" aria-label="關閉">✕</button></div>';
+        head.querySelector('[data-pane="close"]').onclick = function () { App.go(base); };
+        var back = head.querySelector('[data-pane="back"]');
+        if (back) back.onclick = function () { host.goMode('detail'); };
+        return head;
+      },
+      goMode: function (m) {
+        App.go(base + '?task=' + encodeURIComponent(id) + (m === 'detail' ? '' : '&mode=' + m), m === 'detail');
+      },
+      changed: function () { App.refreshMain(); },
+      afterDelete: function () {
+        App.go(base, true);
+        App.refreshMain();
+      }
+    };
+    App.TaskView.render(host, id, mode);
+  };
+
+  /** 中欄清單中標示目前在右欄打開的任務。 */
+  App.markSelected = function () {
+    var current = paneState.id;
+    document.querySelectorAll('#page [data-task]').forEach(function (row) {
+      row.classList.toggle('selected', !!current && row.getAttribute('data-task') === current);
+    });
+  };
+
+  // 中欄清單是讀取資料後才畫出來的，畫好後再標示一次選取的任務
+  new MutationObserver(function () { if (paneState.id) App.markSelected(); })
+    .observe(document.getElementById('page'), { childList: true, subtree: true });
+
+  // 電腦版：點中欄清單裡的任務，改在右欄打開（不換頁）
+  document.addEventListener('click', function (e) {
+    if (!App.isDesktop() || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    var a = e.target.closest && e.target.closest('a[href^="#/tasks/"]');
+    if (!a || !a.closest('#page')) return;
+    var m = a.getAttribute('href').match(/^#\/tasks\/([^/?]+)$/);
+    if (!m) return;
+    e.preventDefault();
+    App.go(App.location().path + '?task=' + m[1]);
+  });
 
   window.addEventListener('hashchange', App.render);
 
@@ -372,6 +501,64 @@
   /** 頁面載入資料後，依內容決定底部要亮哪個分頁（例如子任務亮「專案」） */
   App.setActiveTab = function (tab) {
     renderTabbar(tab);
+    if (App.isDesktop()) App.renderDesktopChrome(tab);
+  };
+
+  // ---------- 電腦版左欄選單與上方工具列（SPEC 5.6）----------
+
+  var sideProjectsAt = 0;
+
+  /** 左欄「專案」底下列出我參與的專案；最多每 30 秒向後端更新一次。 */
+  function loadSideProjects(force) {
+    if (!force && Date.now() - sideProjectsAt < 30000) return;
+    sideProjectsAt = Date.now();
+    App.api('projects.list').then(function (d) {
+      App.state.sideProjects = d.projects.filter(function (p) { return p.participating; });
+      App.renderDesktopChrome(App.state.sideTab);
+    }).catch(function () { /* 左欄專案清單載入失敗不影響使用 */ });
+  }
+  App.reloadSideProjects = function () { loadSideProjects(true); };
+
+  App.renderDesktopChrome = function (activeTab) {
+    if (!App.isDesktop() || !App.state.profile) return;
+    App.state.sideTab = activeTab;
+    var p = App.state.profile;
+    var path = App.location().path;
+    var tabs = TABS.filter(function (t) { return !t.admin || p.isAdmin; });
+    var projects = App.state.sideProjects || [];
+    App.$('sidebar').innerHTML =
+      '<div class="side-brand"><img src="icons/icon-192.png" alt=""><span>內部專案追蹤系統</span></div>' +
+      '<nav class="side-nav">' + tabs.map(function (t) {
+        var html = '<a class="side-item' + (t.id === activeTab ? ' active' : '') + '" href="#' + t.path + '">' +
+          '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[t.id] + '</svg><span>' + t.label + '</span></a>';
+        if (t.id === 'projects' && projects.length) {
+          html += '<div class="side-sub">' + projects.map(function (pr) {
+            var href = '/projects/' + encodeURIComponent(pr.id);
+            return '<a class="side-subitem' + (path === href ? ' active' : '') + '" href="#' + href + '">' +
+              App.esc(pr.name) + (pr.state === '暫停' ? ' <small>暫停</small>' : '') + '</a>';
+          }).join('') + '</div>';
+        }
+        return html;
+      }).join('') + '</nav>' +
+      '<a class="side-user" href="#/settings"><span class="avatar avatar-sm">' + App.esc(App.initial(p.name)) + '</span>' +
+      '<span class="side-user-text"><strong>' + App.esc(p.name) + '</strong><small>' +
+      App.esc((p.units.map(function (u) { return u.name; }).join('、') || '未設定單位') + ' · ' + p.role) + '</small></span></a>';
+    var header = App.$('desk-header');
+    if (!header.firstChild) {
+      header.innerHTML = '<form class="desk-search" id="desk-search">' +
+        '<input class="input" name="q" type="search" placeholder="搜尋標題、說明、專案目標或編號" autocomplete="off">' +
+        '</form><button class="btn btn-primary" type="button" id="desk-new">＋ 新增</button>';
+      header.querySelector('#desk-search').onsubmit = function (e) {
+        e.preventDefault();
+        var q = e.target.q.value.trim();
+        if (!q) return;
+        App.state.lastSearch = q;
+        if (App.location().path === '/search') App.render(true);
+        else App.go('/search');
+      };
+      header.querySelector('#desk-new').onclick = function () { App.onFab(); };
+    }
+    loadSideProjects(false);
   };
 
   /** 右下角「＋」新增按鈕（SPEC 5.1） */
