@@ -59,7 +59,8 @@
       (d.projects.length ? '<div class="card list">' + d.projects.slice(0, 3).map(App.projectCard).join('') + '</div>'
         : '<div class="card empty small-empty"><p class="muted">還沒有參與的專案。</p></div>');
 
-    return boxes + '<div class="home-cols"><div>' + needs + '</div><div>' + projects + '</div></div>';
+    // 電腦版：左欄＝三個數字方塊＋需要我處理，右欄＝我參與的專案（SPEC 5.6）；手機版由上到下依序排列
+    return '<div class="home-cols"><div>' + boxes + needs + '</div><div>' + projects + '</div></div>';
   }
 
   function statBox(kind, label, n) {

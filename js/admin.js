@@ -18,12 +18,12 @@
         '<h3 class="section-title">管理工具</h3>' +
         '<div class="card list">' +
         '<a class="list-row" href="#/admin/members"><span class="list-main">成員管理</span><span class="chev">›</span></a>' +
+        '<div class="list-row digest-row"><span class="list-main"><span class="list-title">測試寄送（每日摘要）</span>' +
+        '<span class="list-sub" id="digest-status">讀取中…</span></span>' +
+        '<button class="btn btn-small btn-secondary" type="button" id="btn-test-digest">寄一封我的摘要給我</button></div>' +
         '<a class="list-row" href="#/admin/units"><span class="list-main">單位管理</span><span class="chev">›</span></a>' +
         '<a class="list-row" href="#/admin/logs"><span class="list-main">操作紀錄</span><span class="chev">›</span></a>' +
         '<a class="list-row" href="#/admin/deleted"><span class="list-main">已刪除項目</span><span class="chev">›</span></a>' +
-        '<div class="list-row digest-row"><span class="list-main"><span class="list-title">每日摘要</span>' +
-        '<span class="list-sub" id="digest-status">讀取中…</span></span>' +
-        '<button class="btn btn-small btn-secondary" type="button" id="btn-test-digest">寄一封我的摘要給我</button></div>' +
         '</div></main>';
       App.api('overview').then(function (data) {
         var box = App.$('overview-box');

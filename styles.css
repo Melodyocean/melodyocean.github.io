@@ -772,6 +772,7 @@ em.req { font-style: normal; color: var(--danger); font-size: 12px; }
   .desktop .pane-open .home-cols { display: block; }
   .stat-grid { grid-template-columns: repeat(3, 1fr); }
   .desktop .stat-grid { grid-template-columns: repeat(6, 1fr); }
+  .desktop .home-cols .stat-row { margin-bottom: 4px; }
   .desktop .pane-open .stat-grid { grid-template-columns: repeat(3, 1fr); }
 
   /* 任務清單以表格呈現 */
