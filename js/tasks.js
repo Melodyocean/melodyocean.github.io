@@ -76,14 +76,10 @@
     }).join('');
   }
 
-  function loadInto(boxId, promise, render) {
-    promise.then(function (data) {
-      var box = App.$(boxId);
-      if (box) box.innerHTML = render(data);
-    }).catch(function (err) {
-      var box = App.$(boxId);
-      if (box) box.innerHTML = App.errorHtml(err);
-    });
+  /** 讀取清單並畫在 boxId：有暫存先顯示，再更新為最新資料。 */
+  function loadInto(boxId, action, payload, render) {
+    var box = App.$(boxId);
+    return App.load(box, action, payload, function (data) { box.innerHTML = render(data); });
   }
 
   // ---------- 公共待辦分頁（SPEC 6.5）----------
@@ -93,7 +89,7 @@
     render: function (page) {
       page.innerHTML = App.topbar({ title: '公共待辦' }) +
         '<main class="content" id="todo-list">' + App.loadingHtml + '</main>';
-      loadInto('todo-list', App.api('tasks.listTodos'), function (data) {
+      loadInto('todo-list', 'tasks.listTodos', {}, function (data) {
         if (!data.tasks.length) {
           return '<div class="card empty"><h2>目前沒有未完成的公共待辦</h2>' +
             '<p class="muted">按右下角「＋」可以新增。</p></div>';
@@ -110,7 +106,7 @@
     render: function (page) {
       page.innerHTML = App.topbar({ title: '歷史' }) +
         '<main class="content" id="history-list">' + App.loadingHtml + '</main>';
-      loadInto('history-list', App.api('tasks.history'), function (data) {
+      loadInto('history-list', 'tasks.history', {}, function (data) {
         if (!data.tasks.length && !data.projects.length) {
           return '<div class="card empty"><h2>還沒有歷史資料</h2>' +
             '<p class="muted">簽核完成的任務、已結案的專案會移到這裡。</p></div>';
@@ -148,7 +144,7 @@
         back: isProject ? '/projects/' + encodeURIComponent(place) : (place === 'pick' ? '/projects' : '/todos'),
         backLabel: '取消'
       }) + '<main class="content" id="new-box">' + App.loadingHtml + '</main>';
-      Promise.all([App.api('members.list'), App.api('units.list'), App.api('projects.creatable')]).then(function (res) {
+      Promise.all([App.getData('members.list'), App.getData('units.list'), App.getData('projects.creatable')]).then(function (res) {
         App.state.units = res[1].units;
         if (App.$('new-box')) renderNewForm(res[0].members, res[2].projects, place);
       }).catch(function (err) {

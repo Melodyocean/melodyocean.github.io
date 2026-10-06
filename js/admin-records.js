@@ -22,7 +22,7 @@
         '<button class="btn btn-primary btn-block" type="submit" id="log-btn">查詢</button></form>' +
         '<div id="log-list">' + App.loadingHtml + '</div></main>';
       var form = App.$('log-filter');
-      App.api('members.list').then(function (res) {
+      App.getData('members.list').then(function (res) {
         form.actorId.innerHTML = '<option value="">全部</option>' + res.members.map(function (m) {
           return '<option value="' + esc(m.id) + '">' + esc(m.name) + (m.active ? '' : '（已停用）') + '</option>';
         }).join('');

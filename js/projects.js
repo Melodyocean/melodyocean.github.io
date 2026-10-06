@@ -24,15 +24,10 @@
       '</a>';
   };
 
-  function loadInto(boxId, promise, render) {
-    return promise.then(function (data) {
-      var box = App.$(boxId);
-      if (box) box.innerHTML = render(data);
-      return data;
-    }).catch(function (err) {
-      var box = App.$(boxId);
-      if (box) box.innerHTML = App.errorHtml(err);
-    });
+  /** 讀取清單並畫在 boxId：有暫存先顯示，再更新為最新資料。 */
+  function loadInto(boxId, action, payload, render) {
+    var box = App.$(boxId);
+    return App.load(box, action, payload, function (data) { box.innerHTML = render(data); });
   }
 
   // ---------- 專案分頁 ----------
@@ -42,7 +37,7 @@
     render: function (page) {
       page.innerHTML = App.topbar({ title: '專案' }) +
         '<main class="content" id="project-list">' + App.loadingHtml + '</main>';
-      loadInto('project-list', App.api('projects.list'), function (data) {
+      loadInto('project-list', 'projects.list', {}, function (data) {
         if (!data.projects.length) {
           return '<div class="card empty"><h2>目前沒有專案</h2><p class="muted">按右下角「＋」→「新增專案」建立第一個專案。</p></div>';
         }
@@ -70,12 +65,8 @@
   });
 
   function loadProject(page, id) {
-    return App.api('projects.get', { id: id }).then(function (data) {
-      if (App.$('project-box')) renderProject(page, data.project);
-    }).catch(function (err) {
-      var box = App.$('project-box');
-      if (box) box.innerHTML = App.errorHtml(err);
-    });
+    var box = App.$('project-box');
+    return App.load(box, 'projects.get', { id: id }, function (data) { renderProject(page, data.project); });
   }
 
   function targetDateHtml(p) {
@@ -289,7 +280,7 @@
     render: function (page, params) {
       page.innerHTML = App.topbar({ title: '已完成', back: '/projects/' + encodeURIComponent(params.id), backLabel: '專案' }) +
         '<main class="content" id="done-box">' + App.loadingHtml + '</main>';
-      loadInto('done-box', App.api('projects.get', { id: params.id }), function (data) {
+      loadInto('done-box', 'projects.get', { id: params.id }, function (data) {
         var done = data.project.tasks.filter(function (t) { return t.status === '已完成'; })
           .sort(function (a, b) { return String(b.completedAt).localeCompare(String(a.completedAt)); });
         return '<p class="muted">' + esc(data.project.id) + ' ' + esc(data.project.name) + '</p>' +
@@ -307,7 +298,7 @@
     render: function (page, params) {
       page.innerHTML = App.topbar({ title: '編輯專案', back: '/projects/' + encodeURIComponent(params.id), backLabel: '取消' }) +
         '<main class="content" id="pform-box">' + App.loadingHtml + '</main>';
-      Promise.all([App.api('projects.get', { id: params.id }), App.api('members.list')]).then(function (res) {
+      Promise.all([App.api('projects.get', { id: params.id }), App.getData('members.list')]).then(function (res) {
         if (App.$('pform-box')) renderProjectForm(res[0].project, res[1].members);
       }).catch(function (err) {
         var box = App.$('pform-box');
@@ -319,7 +310,7 @@
   function renderProjectFormPage(page) {
     page.innerHTML = App.topbar({ title: '新增專案', back: '/projects', backLabel: '取消' }) +
       '<main class="content" id="pform-box">' + App.loadingHtml + '</main>';
-    App.api('members.list').then(function (res) {
+    App.getData('members.list').then(function (res) {
       if (App.$('pform-box')) renderProjectForm(null, res.members);
     }).catch(function (err) {
       var box = App.$('pform-box');

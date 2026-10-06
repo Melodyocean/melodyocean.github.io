@@ -25,13 +25,8 @@
         '<a class="list-row" href="#/admin/logs"><span class="list-main">操作紀錄</span><span class="chev">›</span></a>' +
         '<a class="list-row" href="#/admin/deleted"><span class="list-main">已刪除項目</span><span class="chev">›</span></a>' +
         '</div></main>';
-      App.api('overview').then(function (data) {
-        var box = App.$('overview-box');
-        if (box) App.renderOverview(box, data);
-      }).catch(function (err) {
-        var box = App.$('overview-box');
-        if (box) box.innerHTML = App.errorHtml(err);
-      });
+      var ovBox = App.$('overview-box');
+      App.load(ovBox, 'overview', {}, function (data) { App.renderOverview(ovBox, data); });
       App.api('notify.status').then(function (d) {
         var el = App.$('digest-status');
         if (!el) return;
@@ -222,7 +217,7 @@
       page.innerHTML = App.topbar({ title: isNew ? '新增成員' : '編輯成員', back: '/admin/members', backLabel: '成員' }) +
         '<main class="content" id="member-form-box">' + App.loadingHtml + '</main>';
       // 編輯時需要該成員資料；單位清單也重新取得，確保是最新的
-      Promise.all([isNew ? null : App.api('members.list'), App.api('units.list')]).then(function (res) {
+      Promise.all([isNew ? null : App.api('members.list'), App.getData('units.list')]).then(function (res) {
         App.state.units = res[1].units;
         var member = isNew ? { name: '', email: '', notifyEmail: '', units: [], role: '一般成員', active: true }
           : res[0].members.filter(function (m) { return m.id === params.id; })[0];
@@ -354,7 +349,7 @@
   });
 
   function loadDeactivate(id) {
-    Promise.all([App.api('members.openItems', { id: id }), App.api('members.list'), App.api('units.list')]).then(function (res) {
+    Promise.all([App.api('members.openItems', { id: id }), App.getData('members.list'), App.getData('units.list')]).then(function (res) {
       var box = App.$('deact-box');
       if (!box) return;
       App.state.units = res[2].units;

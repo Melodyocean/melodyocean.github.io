@@ -24,16 +24,12 @@
         '<a class="avatar" href="#/settings" aria-label="個人設定">' + esc(App.initial(p.name)) + '</a></div>' +
         '</header>' +
         '<main class="content" id="home-box">' + App.loadingHtml + '</main>';
-      App.api('home').then(function (data) {
+      var box = App.$('home-box');
+      App.load(box, 'home', {}, function (data) {
         App.state.home = data;
-        var box = App.$('home-box');
-        if (!box) return;
         box.innerHTML = homeHtml(data) + installCardHtml();
         bindHome(box, data);
         bindInstallCard(page);
-      }).catch(function (err) {
-        var box = App.$('home-box');
-        if (box) box.innerHTML = App.errorHtml(err);
       });
     }
   });
@@ -105,17 +101,14 @@
       if (!def) { App.go('/home', true); return; }
       page.innerHTML = App.topbar({ title: def.title, back: '/home', backLabel: '首頁' }) +
         '<main class="content" id="mine-box">' + App.loadingHtml + '</main>';
-      App.api('home').then(function (d) {
-        var box = App.$('mine-box');
-        if (!box) return;
+      var mineBox = App.$('mine-box');
+      App.load(mineBox, 'home', {}, function (d) {
+        var box = mineBox;
         var list = d[params.kind];
         var reminders = params.kind === 'needs' ? d.resumeReminders.map(reminderCard).join('') : '';
         box.innerHTML = reminders + (list.length ? App.taskList(list)
           : (reminders ? '' : '<div class="card empty"><p class="muted">' + esc(def.empty) + '</p></div>'));
         bindHome(box, d);
-      }).catch(function (err) {
-        var box = App.$('mine-box');
-        if (box) box.innerHTML = App.errorHtml(err);
       });
     }
   });

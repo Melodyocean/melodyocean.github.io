@@ -33,11 +33,13 @@
   // ---------- 詳情 ----------
 
   TaskView.detail = function (host, id) {
-    host.el.innerHTML = App.loadingHtml;
-    return App.api('tasks.get', { id: id }).then(function (data) {
-      if (host.el.isConnected) renderDetail(host, data.task);
-    }).catch(function (err) {
-      if (host.el.isConnected) host.el.innerHTML = App.errorHtml(err);
+    return App.load(host.el, 'tasks.get', { id: id }, function (data) {
+      // 資料更新重畫時，保留使用者正在打的備註
+      var ta = host.el.querySelector('[data-role="note-form"] textarea');
+      var draft = ta ? ta.value : '';
+      renderDetail(host, data.task);
+      var ta2 = host.el.querySelector('[data-role="note-form"] textarea');
+      if (draft && ta2) ta2.value = draft;
     });
   };
 
@@ -342,7 +344,7 @@
   TaskView.assign = function (host, id) {
     host.el.innerHTML = App.loadingHtml;
     host.header({ title: '修改指派', cancel: true });
-    Promise.all([App.api('tasks.get', { id: id }), App.api('members.list'), App.api('units.list')]).then(function (res) {
+    Promise.all([App.api('tasks.get', { id: id }), App.getData('members.list'), App.getData('units.list')]).then(function (res) {
       if (!host.el.isConnected) return;
       App.state.units = res[2].units;
       var t = res[0].task;

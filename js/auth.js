@@ -70,6 +70,7 @@
     $('login-busy').hidden = false;
     App.api('login', { idToken: response.credential })
       .then(function (data) {
+        App.clearCache(); // 新的登入，不沿用這台裝置上別人的暫存
         App.setToken(data.token);
         return loadApp();
       })
@@ -94,6 +95,7 @@
 
   App.logout = function () {
     App.setToken(null);
+    App.clearCache();
     if (window.google && App.state.googleReady) google.accounts.id.disableAutoSelect();
     showLogin();
   };
@@ -105,13 +107,35 @@
     showLogin(err.code === 'SESSION_EXPIRED' || err.code === 'SESSION_INVALID' ? '登入已過期，請重新登入。' : err.message);
   };
 
-  /** 取回登入者資料與單位清單，然後顯示畫面。 */
+  /**
+   * 取回登入者資料與單位清單，然後顯示畫面。
+   * 這台裝置有上次的資料時，先直接顯示，同時在背景向後端確認（登入是否仍有效、資料是否有變）。
+   */
   function loadApp() {
-    return App.api('bootstrap').then(function (data) {
-      App.state.profile = data.profile;
-      App.state.units = data.units;
+    App.loadCache();
+    var cached = App.cached('bootstrap');
+    var shown = false;
+    if (cached) {
+      App.state.profile = cached.profile;
+      App.state.units = cached.units;
       App.showView('view-app');
       App.render();
+      shown = true;
+    }
+    return App.api('bootstrap').then(function (data) {
+      var changed = JSON.stringify(data) !== JSON.stringify(cached);
+      App.state.profile = data.profile;
+      App.state.units = data.units;
+      if (!shown) {
+        App.showView('view-app');
+        App.render();
+      } else if (changed) {
+        App.renderDesktopChrome(App.state.sideTab);
+        App.render(true);
+      }
+    }).catch(function (err) {
+      if (!shown) throw err; // 沒有先顯示的話，交給啟動流程處理（例如回到登入畫面）
+      if (err.code === 'NETWORK') App.toast('目前無法連線，顯示的是上次的資料');
     });
   }
 

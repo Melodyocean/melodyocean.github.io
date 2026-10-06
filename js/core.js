@@ -43,10 +43,61 @@
     try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch (e) { /* 無痕模式等 */ }
   };
 
+  // ---------- 暫存（加速）----------
+  // 讀取類的結果會暫存在這台裝置上：再看同一個畫面時先顯示上次的內容，
+  // 同時向後端拿最新資料，有變化才更新畫面。一旦有任何修改，就清掉暫存，
+  // 避免修改後短暫看到舊的狀態。登出時全部清除。
+  var READ_ACTIONS = ['bootstrap', 'home', 'tasks.listTodos', 'tasks.history', 'tasks.get', 'projects.list',
+    'projects.get', 'projects.creatable', 'members.list', 'units.list', 'overview'];
+  var KEEP_ON_WRITE = ['bootstrap', 'members.list', 'units.list']; // 很少變動，只有改成員或單位時才清
+  var cache = {};
+
+  function cacheKey(action, payload) { return action + '|' + JSON.stringify(payload || {}); }
+  function storageKey() { return 'pt_cache_' + (App.state.profile ? App.state.profile.id : (localStorage.getItem('pt_cache_user') || '')); }
+
+  function saveCache() {
+    try {
+      if (App.state.profile) localStorage.setItem('pt_cache_user', App.state.profile.id);
+      localStorage.setItem(storageKey(), JSON.stringify(cache));
+    } catch (e) { /* 空間不足或無痕模式：只用記憶體暫存 */ }
+  }
+
+  App.loadCache = function () {
+    try { cache = JSON.parse(localStorage.getItem(storageKey()) || '{}') || {}; } catch (e) { cache = {}; }
+  };
+
+  App.clearCache = function () {
+    cache = {};
+    try {
+      Object.keys(localStorage).forEach(function (k) { if (k.indexOf('pt_cache') === 0) localStorage.removeItem(k); });
+    } catch (e) { /* 忽略 */ }
+  };
+
+  App.cached = function (action, payload) {
+    var hit = cache[cacheKey(action, payload)];
+    return hit ? hit.data : undefined;
+  };
+
+  function afterWrite(action) {
+    var keepAll = !/^(members|units)\./.test(action);
+    Object.keys(cache).forEach(function (k) {
+      if (!keepAll || KEEP_ON_WRITE.indexOf(k.split('|')[0]) === -1) delete cache[k];
+    });
+    saveCache();
+  }
+
+  // 畫面最上方的細進度線：有請求進行中時顯示
+  var pending = 0;
+  function setPending(delta) {
+    pending = Math.max(0, pending + delta);
+    document.body.classList.toggle('loading', pending > 0);
+  }
+
   /** 呼叫後端。失敗時丟出 { code, message }。 */
   App.api = function (action, payload) {
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, 30000);
+    setPending(1);
     return fetch(App.cfg.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -64,8 +115,45 @@
           if (/^(SESSION_|NOT_MEMBER|MEMBER_DISABLED)/.test(err.code) && App.onSessionLost) App.onSessionLost(err);
           throw err;
         }
+        if (READ_ACTIONS.indexOf(action) !== -1) {
+          cache[cacheKey(action, payload)] = { data: json.data, at: Date.now() };
+          saveCache();
+        } else if (['login', 'me', 'search', 'members.openItems', 'notify.testDigest'].indexOf(action) === -1 && !/\.(list|status)$/.test(action)) {
+          afterWrite(action);
+        }
         return json.data;
-      });
+      })
+      .finally(function () { setPending(-1); });
+  };
+
+  /**
+   * 讀取並顯示：有暫存就先用暫存畫出來，再向後端拿最新資料；資料有變化才重畫。
+   * render(data) 負責畫畫面；el 是放內容的容器（用來判斷使用者是否已經離開這個畫面）。
+   * 回傳 Promise（拿到最新資料或失敗後結束）。
+   */
+  App.load = function (el, action, payload, render, opts) {
+    opts = opts || {};
+    var cached = App.cached(action, payload);
+    var shown = cached !== undefined;
+    if (shown) render(cached, false);
+    else if (!opts.keepContent) el.innerHTML = App.loadingHtml;
+    return App.api(action, payload).then(function (fresh) {
+      if (!el.isConnected) return fresh;
+      if (!shown || JSON.stringify(fresh) !== JSON.stringify(cached)) render(fresh, true);
+      return fresh;
+    }).catch(function (err) {
+      if (!el.isConnected) return;
+      if (shown) App.toast('目前無法更新，顯示的是上次的資料');
+      else el.innerHTML = App.errorHtml(err);
+    });
+  };
+
+  /** 表單用的參考資料（成員、單位等）：有暫存就直接用，同時在背景更新暫存；沒有才等後端。 */
+  App.getData = function (action, payload) {
+    var c = App.cached(action, payload);
+    var p = App.api(action, payload);
+    if (c !== undefined) { p.catch(function () { /* 背景更新失敗不影響 */ }); return Promise.resolve(c); }
+    return p;
   };
 
   /** 按鈕執行中：停用並改文字，結束後恢復。 */
@@ -525,6 +613,9 @@
     var p = App.state.profile;
     var path = App.location().path;
     var tabs = TABS.filter(function (t) { return !t.admin || p.isAdmin; });
+    if (!App.state.sideProjects && App.cached('projects.list')) {
+      App.state.sideProjects = App.cached('projects.list').projects.filter(function (pr) { return pr.participating; });
+    }
     var projects = App.state.sideProjects || [];
     App.$('sidebar').innerHTML =
       '<div class="side-brand"><img src="icons/icon-192.png" alt=""><span>內部專案追蹤系統</span></div>' +
