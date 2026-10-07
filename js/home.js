@@ -40,6 +40,7 @@
       statBox('overdue', '已逾期', d.counts.overdue) +
       statBox('review', '待我簽核', d.counts.review) +
       statBox('assigned', '指派給我', d.counts.assigned) +
+      statBox('feed', '新動態', d.counts.feed || 0) +
       '</div>';
 
     var needCount = d.needs.length + d.resumeReminders.length;
@@ -60,7 +61,8 @@
   }
 
   function statBox(kind, label, n) {
-    return '<a class="stat stat-' + kind + '" href="#/mine/' + kind + '"><span class="stat-num">' + n + '</span><span class="stat-label">' + label + '</span></a>';
+    var cls = 'stat stat-' + kind + (kind === 'feed' && !n ? ' stat-zero' : ''); // 新動態為 0 時灰色（SPEC 5.2）
+    return '<a class="' + cls + '" href="#/mine/' + kind + '"><span class="stat-num">' + n + '</span><span class="stat-label">' + label + '</span></a>';
   }
 
   function reminderCard(r) {
@@ -93,6 +95,40 @@
     review: { title: '待我簽核', empty: '沒有等你簽核的項目。' },
     assigned: { title: '指派給我', empty: '沒有指派給你或你單位的未完成項目。' }
   };
+
+  // ---------- 新動態清單（SPEC 6.12）----------
+
+  App.route('/mine/feed', {
+    tab: 'home',
+    render: function (page) {
+      page.innerHTML = App.topbar({ title: '新動態', back: '/home', backLabel: '首頁' }) +
+        '<main class="content" id="feed-box">' + App.loadingHtml + '</main>';
+      var box = App.$('feed-box');
+      App.load(box, 'feed.list', {}, function (d) {
+        if (!d.items.length) {
+          box.innerHTML = '<div class="card empty"><p class="muted">沒有新動態。跟你有關的任務有人寫備註、改狀態或期限時，會出現在這裡。</p></div>';
+          return;
+        }
+        box.innerHTML =
+          '<div class="feed-head"><span class="muted">共 ' + d.items.length + ' 個任務有新動態</span>' +
+          '<button class="btn btn-small btn-secondary" type="button" id="feed-all">全部標為已讀</button></div>' +
+          '<div class="card list">' + d.items.map(function (t) {
+            return '<a class="task-row feed-row" data-task="' + esc(t.id) + '" href="#/tasks/' + encodeURIComponent(t.id) + '">' +
+              '<span class="task-main">' +
+              '<span class="task-title"><span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + ' <span class="tag tag-new">新</span></span>' +
+              '<span class="task-sub feed-latest">' + esc(t.latest.text) + ' · ' + esc(App.fmtDateTime(t.latest.at)) +
+              (t.moreCount ? '<span class="muted">（另 ' + t.moreCount + ' 則）</span>' : '') + '</span>' +
+              '<span class="task-sub">' + App.statusBadge(t.status) + ' <span>' + esc(t.projectId ? t.projectName : '公共待辦') + ' · ' + esc(t.unitName) + '</span></span>' +
+              '</span></a>';
+          }).join('') + '</div>';
+        App.$('feed-all').onclick = function (e) {
+          App.busy(e.target, App.api('feed.markAll'), '處理中…')
+            .then(function () { App.toast('已全部標為已讀'); App.render(true); })
+            .catch(function (err) { App.toast(err.message); });
+        };
+      });
+    }
+  });
 
   App.route('/mine/:kind', {
     tab: 'home',

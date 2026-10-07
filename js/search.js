@@ -46,7 +46,7 @@
       var href = r.kind === 'project' ? '#/projects/' + encodeURIComponent(r.id) : '#/tasks/' + encodeURIComponent(r.id);
       var status = r.kind === 'project' ? '<span class="tag tag-paused">' + esc(r.status) + '</span>' : App.statusBadge(r.status);
       return '<a class="task-row" href="' + href + '"><span class="task-main">' +
-        '<span class="task-title"><span class="task-id">' + esc(r.id) + '</span> ' + esc(r.title) + '</span>' +
+        '<span class="task-title"><span class="task-id">' + esc(r.id) + '</span> ' + esc(r.title) + (r.hasNew ? ' <span class="tag tag-new">新</span>' : '') + '</span>' +
         '<span class="task-sub">' + status + (r.tag ? ' <span class="tag tag-paused">' + esc(r.tag) + '</span>' : '') +
         ' <span>' + esc(r.place) + '</span></span></span></a>';
     };

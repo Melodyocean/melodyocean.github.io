@@ -33,13 +33,17 @@
   // ---------- 詳情 ----------
 
   TaskView.detail = function (host, id) {
-    return App.load(host.el, 'tasks.get', { id: id }, function (data) {
+    return App.load(host.el, 'tasks.get', { id: id }, function (data, fresh) {
       // 資料更新重畫時，保留使用者正在打的備註
       var ta = host.el.querySelector('[data-role="note-form"] textarea');
       var draft = ta ? ta.value : '';
       renderDetail(host, data.task);
       var ta2 = host.el.querySelector('[data-role="note-form"] textarea');
       if (draft && ta2) ta2.value = draft;
+      // 打開任務即視為已讀（SPEC 6.12）；在背景處理，不影響畫面
+      if (fresh && data.task.unread) {
+        App.api('feed.markRead', { taskId: data.task.id, at: data.task.readStamp }).catch(function () { /* 下次再標 */ });
+      }
     });
   };
 
@@ -64,10 +68,11 @@
   }
 
   function timelineItem(n) {
+    var fresh = n.isNew ? ' tl-new' : ''; // 上次查看後的新內容以淺色底標示（SPEC 5.4）
     if (n.kind === '狀態') {
-      return '<div class="tl-status">' + esc(n.authorName) + ' ' + esc(n.content) + ' · ' + esc(App.fmtDateTime(n.createdAt)) + '</div>';
+      return '<div class="tl-status' + fresh + '">' + esc(n.authorName) + ' ' + esc(n.content) + ' · ' + esc(App.fmtDateTime(n.createdAt)) + '</div>';
     }
-    return '<div class="tl-note">' +
+    return '<div class="tl-note' + fresh + '">' +
       '<div class="tl-head"><strong>' + esc(n.authorName) + '</strong> <span class="muted small">' + esc(App.fmtDateTime(n.createdAt)) +
       (n.editedAt ? ' · 已編輯（' + esc(App.fmtDateTime(n.editedAt)) + '）' : '') + '</span>' +
       (n.canEdit ? '<span class="tl-tools"><button class="link-btn" type="button" data-edit="' + esc(n.id) + '">編輯</button>' +

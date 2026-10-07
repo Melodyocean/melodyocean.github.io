@@ -48,7 +48,7 @@
   // 同時向後端拿最新資料，有變化才更新畫面。一旦有任何修改，就清掉暫存，
   // 避免修改後短暫看到舊的狀態。登出時全部清除。
   var READ_ACTIONS = ['bootstrap', 'home', 'tasks.listTodos', 'tasks.history', 'tasks.get', 'projects.list',
-    'projects.get', 'projects.creatable', 'members.list', 'units.list', 'overview'];
+    'projects.get', 'projects.creatable', 'members.list', 'units.list', 'overview', 'feed.list'];
   var KEEP_ON_WRITE = ['bootstrap', 'members.list', 'units.list']; // 很少變動，只有改成員或單位時才清
   var cache = {};
 
@@ -117,6 +117,10 @@
         }
         if (READ_ACTIONS.indexOf(action) !== -1) {
           cache[cacheKey(action, payload)] = { data: json.data, at: Date.now() };
+          saveCache();
+        } else if (action === 'feed.markRead') {
+          // 打開任務標為已讀：不清除其他畫面的暫存（只影響新動態標示，下次讀取時會更新）
+          ['home', 'feed.list'].forEach(function (a) { delete cache[cacheKey(a, {})]; });
           saveCache();
         } else if (['login', 'me', 'search', 'members.openItems', 'notify.testDigest'].indexOf(action) === -1 && !/\.(list|status)$/.test(action)) {
           afterWrite(action);

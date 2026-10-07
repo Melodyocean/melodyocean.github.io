@@ -51,7 +51,7 @@
 
   function kv(obj) {
     if (!obj) return '<span class="muted">（無）</span>';
-    var keys = Object.keys(obj);
+    var keys = Object.keys(obj).filter(function (k) { return k.charAt(0) !== '_'; }); // _ 開頭為系統內部用
     if (!keys.length) return '<span class="muted">（無）</span>';
     return keys.map(function (k) {
       var v = obj[k];

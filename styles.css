@@ -483,7 +483,7 @@ a { color: var(--primary); }
 
 /* ---------- 第 3 階段：首頁、專案 ---------- */
 
-.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px; }
+.stat-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 8px; } /* 手機 2×2 */
 .stat {
   display: flex;
   flex-direction: column;
@@ -877,3 +877,13 @@ body.loading::before { opacity: 1; animation: loading-bar 1.6s ease-in-out infin
   50% { left: 20%; width: 50%; }
   100% { left: 100%; width: 0; }
 }
+
+/* ---------- 規格 v1.9：新動態（SPEC 5.2、5.4、6.12）---------- */
+.stat-feed { background: #1e3a8a; }
+.stat-feed.stat-zero { background: #9ca3af; }
+@media (min-width: 1024px) { .desktop .stat-row { grid-template-columns: repeat(4, 1fr); } }
+.tag-new { background: #1e3a8a; color: #fff; font-weight: 700; }
+.tl-new { background: #eff6ff; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+.feed-head { display: flex; justify-content: space-between; align-items: center; margin: 4px 4px 10px; }
+.feed-head .btn-small { margin-left: 0; }
+.feed-latest { color: var(--text); }

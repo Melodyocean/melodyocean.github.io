@@ -38,7 +38,8 @@
   App.taskRow = function (t, opts) {
     opts = opts || {};
     var place = opts.inProject ? '' : esc(t.projectId ? t.projectName : '公共待辦') + ' · ';
-    var tags = (t.closedWithProject ? ' <span class="tag tag-paused">隨專案結案</span>' : '') +
+    var tags = (t.hasNew ? ' <span class="tag tag-new">新</span>' : '') + // 新動態（SPEC 6.12）
+      (t.closedWithProject ? ' <span class="tag tag-paused">隨專案結案</span>' : '') +
       (t.waiting ? ' <span class="tag tag-waiting">等' + esc(t.waiting.waitingFor) + '</span>' : '') +
       (t.projectPaused && !opts.inProject ? ' <span class="tag tag-paused">暫停中</span>' : '');
     var who = t.assigneeNames.length ? esc(t.assigneeNames.join('、')) : '單位全體';
