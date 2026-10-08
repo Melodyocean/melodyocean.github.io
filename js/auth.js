@@ -136,7 +136,7 @@
       }
     }).catch(function (err) {
       if (!shown) throw err; // 沒有先顯示的話，交給啟動流程處理（例如回到登入畫面）
-      if (err.code === 'NETWORK') App.toast('目前無法連線，顯示的是上次的資料');
+      if (err.code === 'NETWORK') App.toast('系統暫時沒有回應，顯示的是上次的資料');
     });
   }
 

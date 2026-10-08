@@ -127,11 +127,22 @@
     document.body.classList.toggle('loading', pending > 0);
   }
 
-  /** 呼叫後端。失敗時丟出 { code, message }。 */
-  App.api = function (action, payload) {
+  /** 不會改資料的操作：連線出狀況時可以放心自動重送。 */
+  function isReadOnly(action) {
+    return READ_ACTIONS.indexOf(action) !== -1 || ['me', 'search', 'members.openItems'].indexOf(action) !== -1 ||
+      /\.(list|status)$/.test(action);
+  }
+
+  /**
+   * 送出一次請求，回傳後端的回覆（JSON）。連線問題分成三種：
+   * offline（裝置沒有網路）、timeout（等太久）、noreply（拿回來的不是系統的回覆，例如 Google 的錯誤網頁）；
+   * redirected：操作在途中被 Google 當成一般開啟網址（doGet）處理，原本的操作並沒有執行。
+   */
+  function send(action, payload) {
+    if (navigator.onLine === false) return Promise.reject({ kind: 'offline' });
     var controller = new AbortController();
-    var timer = setTimeout(function () { controller.abort(); }, 30000);
-    setPending(1);
+    var timedOut = false;
+    var timer = setTimeout(function () { timedOut = true; controller.abort(); }, 30000);
     return fetch(App.cfg.API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -139,11 +150,34 @@
       signal: controller.signal
     })
       .then(function (res) { return res.json(); })
-      .catch(function () {
-        throw { code: 'NETWORK', message: '連線失敗，請確認網路後再試一次。' };
-      })
       .then(function (json) {
-        clearTimeout(timer);
+        if (json && json.ok && json.service) throw { kind: 'redirected' };
+        return json;
+      }, function () {
+        throw { kind: navigator.onLine === false ? 'offline' : timedOut ? 'timeout' : 'noreply' };
+      })
+      .finally(function () { clearTimeout(timer); });
+  }
+
+  function sendWithRetry(action, payload) {
+    return send(action, payload).catch(function (e) {
+      // 被當成 doGet 時原本的操作沒有執行，重送不會重複寫入；讀取類任何狀況都可以重送
+      if (e.kind === 'redirected' || (e.kind !== 'offline' && isReadOnly(action))) return send(action, payload);
+      throw e;
+    }).catch(function (e) {
+      if (!e || !e.kind) throw e;
+      var msg = e.kind === 'offline' ? '目前沒有網路連線，請確認網路後再試一次。'
+        : isReadOnly(action) || e.kind === 'redirected' ? '系統暫時沒有回應，請再試一次。'
+        : '系統暫時沒有回應，請重新整理畫面，確認剛才的操作是否已儲存。';
+      throw { code: 'NETWORK', message: msg };
+    });
+  }
+
+  /** 呼叫後端。失敗時丟出 { code, message }。 */
+  App.api = function (action, payload) {
+    setPending(1);
+    return sendWithRetry(action, payload)
+      .then(function (json) {
         if (!json || !json.ok) {
           var err = (json && json.error) || { code: 'SERVER_ERROR', message: '系統發生錯誤，請稍後再試。' };
           if (/^(SESSION_|NOT_MEMBER|MEMBER_DISABLED)/.test(err.code) && App.onSessionLost) App.onSessionLost(err);
