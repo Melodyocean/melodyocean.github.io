@@ -17,7 +17,7 @@
   App.projectCard = function (p) {
     var hint = p.hint ? '<span class="hint-' + p.hint.kind + '">' + esc(p.hint.text) + '</span>' : '';
     return '<a class="project-row" href="#/projects/' + encodeURIComponent(p.id) + '">' +
-      '<span class="project-title"><span class="task-id">' + esc(p.id) + '</span> ' + esc(p.name) + ' ' + App.projectTags(p) + '</span>' +
+      '<span class="project-title">' + (p.hasNew ? App.dot() : '') + '<span class="task-id">' + esc(p.id) + '</span> ' + esc(p.name) + ' ' + App.projectTags(p) + '</span>' +
       App.progressHtml(p.done, p.total) +
       (p.state === '暫停' ? '<span class="project-hint muted">' + esc(p.pauseReason) + ' · 預計 ' + esc(App.fmtDate(p.resumeDate)) + ' 恢復</span>'
         : (hint ? '<span class="project-hint">' + hint + '</span>' : '')) +
@@ -76,8 +76,37 @@
       (p.state === '進行中' && days >= 0 ? ' <span class="muted">（剩 ' + days + ' 天）</span>' : '') + '</div>';
   }
 
+  // 專案頁「子任務｜全部備註」（SPEC 5.3、D-064）；記住每個專案上次看的是哪一邊
+  App.state.pview = App.state.pview || {};
+
+  function notesPaneHtml() {
+    return '<div class="card notes-pane"><div id="pn-body">' + App.loadingHtml + '</div></div>';
+  }
+
+  function renderNotes(box, data, filter) {
+    var list = data.notes.filter(function (n) { return !filter || n.taskId === filter; });
+    box.innerHTML =
+      '<select class="input" id="pn-filter"><option value="">全部子任務</option>' + data.tasks.map(function (t) {
+        return '<option value="' + esc(t.id) + '"' + (filter === t.id ? ' selected' : '') + '>' + esc(t.id + ' ' + t.title) + '</option>';
+      }).join('') + '</select>' +
+      (list.length ? '<div class="pn-list">' + list.map(function (n) {
+        return '<a class="pn-item" data-task="' + esc(n.taskId) + '" href="#/tasks/' + encodeURIComponent(n.taskId) + '">' +
+          '<span class="pn-task"><span class="task-id">' + esc(n.taskId) + '</span> ' + esc(n.taskTitle) + '</span>' +
+          '<span class="pn-meta">' + esc(n.authorName) + ' · ' + esc(App.fmtDateTime(n.createdAt)) + (n.editedAt ? ' · 已編輯' : '') + '</span>' +
+          '<span class="pn-content">' + esc(n.content) + '</span></a>';
+      }).join('') + '</div>' : '<p class="muted pn-empty">' + (filter ? '這個子任務還沒有備註。' : '這個專案還沒有任何備註。') + '</p>');
+    box.querySelector('#pn-filter').onchange = function (e) { renderNotes(box, data, e.target.value); };
+  }
+
+  function loadNotes(p) {
+    var body = App.$('pn-body');
+    if (!body) return;
+    App.load(body, 'projects.notes', { id: p.id }, function (data) { renderNotes(body, data, ''); });
+  }
+
   function renderProject(page, p) {
     var perm = p.permissions;
+    var view = App.state.pview[p.id] === 'notes' ? 'notes' : 'tasks';
     var closed = p.state === '已結案';
     page.querySelector('.topbar').outerHTML = App.topbar({
       title: '專案', back: closed ? '/history' : '/projects', backLabel: closed ? '歷史' : '專案', more: perm.canManage
@@ -97,7 +126,7 @@
         ' · ' + esc(p.closedBy) + ' ' + esc(App.fmtDateTime(p.closedAt)) + '</div>' : '') +
       '<div class="task-head">' +
       '<div class="task-meta">' + esc(p.id) + ' · ' + esc(p.visibility) + ' · ' + esc(p.createdBy.name) + ' 建立於 ' + esc(App.fmtDate(p.createdAt)) + '</div>' +
-      '<h1 class="task-h1">' + esc(p.name) + '</h1></div>' +
+      '<h1 class="task-h1">' + (p.hasNew ? App.dot() : '') + esc(p.name) + '</h1></div>' +
 
       '<div class="card goal">' +
       '<div class="goal-label">專案目標</div><p class="goal-text">' + esc(p.goal) + '</p>' + targetDateHtml(p) +
@@ -113,11 +142,21 @@
       (p.visibility === '限定成員' ? '<p class="muted small">可見成員：' + esc(p.visibleMembers.map(function (m) { return m.name; }).join('、')) + '（以及被指派子任務的人）</p>' : '') +
       '</div>' +
 
-      (groups || '<div class="card empty"><p class="muted">' + (p.total ? '子任務都完成了。' : '還沒有子任務。') + '</p></div>') +
+      '<div class="segmented pview-switch"><button type="button" class="seg' + (view === 'tasks' ? ' on' : '') + '" data-view="tasks">子任務</button>' +
+      '<button type="button" class="seg' + (view === 'notes' ? ' on' : '') + '" data-view="notes">全部備註</button></div>' +
+      (view === 'notes' ? notesPaneHtml()
+        : (groups || '<div class="card empty"><p class="muted">' + (p.total ? '子任務都完成了。' : '還沒有子任務。') + '</p></div>')) +
 
       (perm.canAddTask ? '<div class="bottom-bar"><a class="btn btn-primary btn-block" href="#/new/task/' + encodeURIComponent(p.id) + '">＋ 新增子任務</a></div>' : '');
 
     App.$('project-box').classList.toggle('has-bottom-bar', perm.canAddTask);
+    App.$('project-box').querySelectorAll('[data-view]').forEach(function (b) {
+      b.onclick = function () {
+        App.state.pview[p.id] = b.getAttribute('data-view');
+        renderProject(page, p);
+      };
+    });
+    if (view === 'notes') loadNotes(p);
     bindProject(page, p);
   }
 

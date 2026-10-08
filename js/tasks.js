@@ -38,21 +38,21 @@
   App.taskRow = function (t, opts) {
     opts = opts || {};
     var place = opts.inProject ? '' : esc(t.projectId ? t.projectName : '公共待辦') + ' · ';
-    var tags = (t.hasNew ? ' <span class="tag tag-new">新</span>' : '') + // 新動態（SPEC 6.12）
-      (t.closedWithProject ? ' <span class="tag tag-paused">隨專案結案</span>' : '') +
+    var dot = t.hasNew ? App.dot() : ''; // 新動態紅點，放在標題前（SPEC 6.12、D-063）
+    var tags = (t.closedWithProject ? ' <span class="tag tag-paused">隨專案結案</span>' : '') +
       (t.waiting ? ' <span class="tag tag-waiting">等' + esc(t.waiting.waitingFor) + '</span>' : '') +
       (t.projectPaused && !opts.inProject ? ' <span class="tag tag-paused">暫停中</span>' : '');
     var who = t.assigneeNames.length ? esc(t.assigneeNames.join('、')) : '單位全體';
     return '<a class="task-row" data-task="' + esc(t.id) + '" href="#/tasks/' + encodeURIComponent(t.id) + '">' +
       // 手機版
       '<span class="task-main m-cell">' +
-      '<span class="task-title"><span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + '</span>' +
+      '<span class="task-title">' + dot + '<span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + '</span>' +
       '<span class="task-sub">' + App.statusBadge(t.status) + tags + ' <span>' + place + whoHtml(t) + '</span></span>' +
       '</span>' +
       '<span class="task-side m-cell">' + App.dueHtml(t) + (t.noteCount ? '<span class="note-count">💬 ' + t.noteCount + '</span>' : '') + '</span>' +
       // 電腦版表格欄位
       '<span class="d-cell c-id">' + esc(t.id) + '</span>' +
-      '<span class="d-cell c-title">' + esc(t.title) + tags + (opts.inProject || !t.projectId ? '' : '<small class="muted">' + esc(t.projectName) + '</small>') + '</span>' +
+      '<span class="d-cell c-title">' + dot + esc(t.title) + tags + (opts.inProject || !t.projectId ? '' : '<small class="muted">' + esc(t.projectName) + '</small>') + '</span>' +
       '<span class="d-cell c-unit">' + esc(t.unitName) + '</span>' +
       '<span class="d-cell c-who">' + who + '</span>' +
       '<span class="d-cell c-due">' + App.dueHtml(t) + '</span>' +

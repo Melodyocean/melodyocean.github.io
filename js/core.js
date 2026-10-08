@@ -17,6 +17,9 @@
 
   App.$ = function (id) { return document.getElementById(id); };
 
+  /** 新動態紅點（SPEC 6.12、D-063） */
+  App.dot = function () { return '<span class="dot-new" aria-label="有新動態" title="有新動態"></span>'; };
+
   /** 把使用者輸入的文字轉成安全的 HTML（避免被當成程式碼執行）。 */
   App.esc = function (value) {
     return String(value === null || value === undefined ? '' : value)
@@ -48,7 +51,7 @@
   // 同時向後端拿最新資料，有變化才更新畫面。一旦有任何修改，就清掉暫存，
   // 避免修改後短暫看到舊的狀態。登出時全部清除。
   var READ_ACTIONS = ['bootstrap', 'home', 'tasks.listTodos', 'tasks.history', 'tasks.get', 'projects.list',
-    'projects.get', 'projects.creatable', 'members.list', 'units.list', 'overview', 'feed.list'];
+    'projects.get', 'projects.creatable', 'members.list', 'units.list', 'overview', 'projects.notes'];
   var KEEP_ON_WRITE = ['bootstrap', 'members.list', 'units.list']; // 很少變動，只有改成員或單位時才清
   var cache = {};
 
@@ -76,6 +79,37 @@
   App.cached = function (action, payload) {
     var hit = cache[cacheKey(action, payload)];
     return hit ? hit.data : undefined;
+  };
+
+  function clearTaskDot(taskId) {
+    var walk = function (o) {
+      if (Array.isArray(o)) { o.forEach(walk); return; }
+      if (!o || typeof o !== 'object') return;
+      if (o.id === taskId && o.hasNew) o.hasNew = false;
+      Object.keys(o).forEach(function (k) { walk(o[k]); });
+    };
+    walk(cache);
+  }
+
+  // ---------- 底部分頁的紅點 ----------
+  App.state.dots = {};
+  function dotsKey() { return 'pt_dots_' + (App.state.profile ? App.state.profile.id : ''); }
+
+  App.setDots = function (dots) {
+    App.state.dots = dots || {};
+    try { if (App.state.profile) localStorage.setItem(dotsKey(), JSON.stringify(App.state.dots)); } catch (e) { /* 忽略 */ }
+    App.paintDots();
+  };
+
+  App.loadDots = function () {
+    try { App.state.dots = JSON.parse(localStorage.getItem(dotsKey()) || '{}') || {}; } catch (e) { App.state.dots = {}; }
+  };
+
+  /** 依目前的紅點狀態，更新底部分頁與電腦版左欄的圖示。 */
+  App.paintDots = function () {
+    document.querySelectorAll('[data-tab]').forEach(function (el) {
+      el.classList.toggle('has-dot', !!App.state.dots[el.getAttribute('data-tab')]);
+    });
   };
 
   function afterWrite(action) {
@@ -119,12 +153,14 @@
           cache[cacheKey(action, payload)] = { data: json.data, at: Date.now() };
           saveCache();
         } else if (action === 'feed.markRead') {
-          // 打開任務標為已讀：不清除其他畫面的暫存（只影響新動態標示，下次讀取時會更新）
-          ['home', 'feed.list'].forEach(function (a) { delete cache[cacheKey(a, {})]; });
+          // 打開任務標為已讀：把暫存裡這個任務的紅點拿掉；含專案紅點的畫面重新讀取
+          clearTaskDot(payload && payload.taskId);
+          ['home', 'projects.list'].forEach(function (a) { delete cache[cacheKey(a, {})]; });
           saveCache();
         } else if (['login', 'me', 'search', 'members.openItems', 'notify.testDigest'].indexOf(action) === -1 && !/\.(list|status)$/.test(action)) {
           afterWrite(action);
         }
+        if (json.dots) App.setDots(json.dots);
         return json.data;
       })
       .finally(function () { setPending(-1); });
@@ -583,7 +619,7 @@
   function renderTabbar(activeTab) {
     var nav = App.$('tabbar');
     nav.innerHTML = TABS.filter(function (t) { return !t.admin || App.state.profile.isAdmin; }).map(function (t) {
-      return '<a class="tab' + (t.id === activeTab ? ' active' : '') + '" href="#' + t.path + '"' +
+      return '<a class="tab' + (t.id === activeTab ? ' active' : '') + (App.state.dots[t.id] ? ' has-dot' : '') + '" data-tab="' + t.id + '" href="#' + t.path + '"' +
         (t.id === activeTab ? ' aria-current="page"' : '') + '>' +
         '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[t.id] + '</svg>' +
         '<span>' + t.label + '</span></a>';
@@ -624,13 +660,13 @@
     App.$('sidebar').innerHTML =
       '<div class="side-brand"><img src="icons/icon-192.png" alt=""><span>內部專案追蹤系統</span></div>' +
       '<nav class="side-nav">' + tabs.map(function (t) {
-        var html = '<a class="side-item' + (t.id === activeTab ? ' active' : '') + '" href="#' + t.path + '">' +
+        var html = '<a class="side-item' + (t.id === activeTab ? ' active' : '') + (App.state.dots[t.id] ? ' has-dot' : '') + '" data-tab="' + t.id + '" href="#' + t.path + '">' +
           '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONS[t.id] + '</svg><span>' + t.label + '</span></a>';
         if (t.id === 'projects' && projects.length) {
           html += '<div class="side-sub">' + projects.map(function (pr) {
             var href = '/projects/' + encodeURIComponent(pr.id);
             return '<a class="side-subitem' + (path === href ? ' active' : '') + '" href="#' + href + '">' +
-              App.esc(pr.name) + (pr.state === '暫停' ? ' <small>暫停</small>' : '') + '</a>';
+              (pr.hasNew ? App.dot() : '') + App.esc(pr.name) + (pr.state === '暫停' ? ' <small>暫停</small>' : '') + '</a>';
           }).join('') + '</div>';
         }
         return html;

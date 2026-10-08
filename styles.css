@@ -483,7 +483,7 @@ a { color: var(--primary); }
 
 /* ---------- 第 3 階段：首頁、專案 ---------- */
 
-.stat-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 8px; } /* 手機 2×2 */
+.stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px; }
 .stat {
   display: flex;
   flex-direction: column;
@@ -878,12 +878,49 @@ body.loading::before { opacity: 1; animation: loading-bar 1.6s ease-in-out infin
   100% { left: 100%; width: 0; }
 }
 
-/* ---------- 規格 v1.9：新動態（SPEC 5.2、5.4、6.12）---------- */
-.stat-feed { background: #1e3a8a; }
-.stat-feed.stat-zero { background: #9ca3af; }
-@media (min-width: 1024px) { .desktop .stat-row { grid-template-columns: repeat(4, 1fr); } }
-.tag-new { background: #1e3a8a; color: #fff; font-weight: 700; }
-.tl-new { background: #eff6ff; margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
-.feed-head { display: flex; justify-content: space-between; align-items: center; margin: 4px 4px 10px; }
-.feed-head .btn-small { margin-left: 0; }
-.feed-latest { color: var(--text); }
+/* ---------- 規格 v1.10：新動態紅點（D-063）、專案全部備註（D-064）---------- */
+.dot-new {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #dc2626;
+  margin-right: 5px;
+  vertical-align: 1px;
+  flex-shrink: 0;
+}
+.tab, .side-item { position: relative; }
+.tab.has-dot::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: calc(50% + 6px);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dc2626;
+  border: 2px solid var(--surface);
+}
+.side-item.has-dot::after {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 27px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dc2626;
+  border: 2px solid var(--surface);
+}
+.section-link .dot-new { margin-right: 4px; }
+.pview-switch { margin: 4px 0 12px; }
+.notes-pane { padding: 12px; }
+.notes-pane .input { margin-bottom: 8px; }
+.pn-list { display: flex; flex-direction: column; }
+.pn-item { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; border-bottom: 1px solid var(--border); color: inherit; text-decoration: none; }
+.pn-item:last-child { border-bottom: none; }
+.pn-item.selected { background: #eff6ff; }
+.pn-task { font-weight: 500; font-size: 14px; }
+.pn-meta { font-size: 13px; color: var(--muted); }
+.pn-content { white-space: pre-wrap; word-break: break-word; }
+.pn-empty { text-align: center; padding: 12px 0; }

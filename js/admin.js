@@ -152,7 +152,7 @@
     var who = t.assigneeNames.length ? t.assigneeNames.join('、') : '單位全體';
     return '<a class="task-row ov-row" data-task="' + esc(t.id) + '" href="#/tasks/' + encodeURIComponent(t.id) + '">' +
       '<span class="task-main">' +
-      '<span class="task-title"><span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + (t.hasNew ? ' <span class="tag tag-new">新</span>' : '') + '</span>' +
+      '<span class="task-title">' + (t.hasNew ? App.dot() : '') + '<span class="task-id">' + esc(t.id) + '</span> ' + esc(t.title) + '</span>' +
       '<span class="task-sub">' + App.statusBadge(t.status) +
       (t.stalled ? ' <span class="tag tag-stalled">停滯 ' + t.idleDays + ' 天</span>' : '') +
       (t.assigneeDisabled ? ' <span class="tag tag-alert">負責人已停用</span>' : '') +

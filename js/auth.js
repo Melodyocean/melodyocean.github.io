@@ -114,6 +114,7 @@
   function loadApp() {
     App.loadCache();
     var cached = App.cached('bootstrap');
+    if (cached) { App.state.profile = cached.profile; App.loadDots(); }
     var shown = false;
     if (cached) {
       App.state.profile = cached.profile;
